@@ -44,29 +44,32 @@ export const updateReminder = async (id: string, changes: Partial<Reminder>) => 
 };
 
 // Generate reminders based on hydration goal (e.g., 8 reminders/day)
-export const generateReminders = (wakeTime: string, sleepTime: string, goal: number): Reminder[] => {
+export const generateReminders = (
+  wakeTime: string,
+  sleepTime: string,
+  goal: number
+): Reminder[] => {
   const reminders: Reminder[] = [];
-
   const now = new Date();
-  console.log(wakeTime, sleepTime, goal, '📌 INPUT');
 
   const [wakeHour, wakeMinute] = wakeTime.split(':').map(Number);
   const [sleepHour, sleepMinute] = sleepTime.split(':').map(Number);
 
+  // Base start/end for today
   const start = new Date();
   start.setHours(wakeHour, wakeMinute, 0, 0);
-  start.setTime(start.getTime() + 60 * 60 * 1000); // Start 1 hour after wake
+  start.setTime(start.getTime() + 60 * 60 * 1000); // 1h after wake-up
 
   const end = new Date();
   end.setHours(sleepHour, sleepMinute, 0, 0);
-  end.setTime(end.getTime() - 30 * 60 * 1000); // End 30 minutes before sleep
+  end.setTime(end.getTime() - 30 * 60 * 1000); // 30m before sleep
 
-  // Cross midnight adjustment
+  // Cross-midnight handling
   if (end <= start) {
     end.setDate(end.getDate() + 1);
   }
 
-  // If it's already past sleep time today, schedule for tomorrow
+  // If today's schedule is already over, move to tomorrow
   if (now > end) {
     start.setDate(start.getDate() + 1);
     end.setDate(end.getDate() + 1);
@@ -77,25 +80,21 @@ export const generateReminders = (wakeTime: string, sleepTime: string, goal: num
   const maxReminders = Math.floor(totalMs / MIN_INTERVAL_MS);
   const safeReminderCount = Math.min(goal, maxReminders);
 
-  console.log('⏳ Interval Minutes:', (totalMs / 60000).toFixed(2));
-  console.log('✅ Max safe reminders:', maxReminders, '→ using', safeReminderCount);
-
   if (safeReminderCount <= 0) return [];
 
   const intervalMs = totalMs / safeReminderCount;
 
   for (let i = 0; i < safeReminderCount; i++) {
     const time = new Date(start.getTime() + i * intervalMs);
-    if (time > now) {
-      reminders.push({
-        id: `${time.getHours()}${time.getMinutes()}${time.getSeconds()}`,
-        time: time.toTimeString().split(' ')[0],
-        enabled: true,
-      });
-    }
+
+    reminders.push({
+      id: `${time.getHours()}${time.getMinutes()}${time.getSeconds()}`,
+      time: time.toTimeString().split(' ')[0], // HH:mm:ss
+      enabled: true,
+    });
   }
 
-  console.log('🔔 Final Reminders Generated:', reminders.length);
   return reminders;
 };
+
 

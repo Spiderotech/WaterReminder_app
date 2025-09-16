@@ -36,23 +36,23 @@ const answerFontSize = isSmallDevice ? 12 : Math.max(14, width * 0.04);
 const faqData = {
   General: [
     {
-      question: 'What is Hydrify?',
-      answer: 'Hydrify is a hydration tracking app designed to help you monitor and improve your daily water intake.',
+      question: 'What is Dora Drink?',
+      answer: 'Dora Drink is a hydration tracking app designed to help you monitor and improve your daily water intake.',
     },
     {
-      question: 'How does Hydrify work?',
-      answer: 'You log your water intake and Hydrify tracks your progress toward your daily hydration goal.',
+      question: 'How does Dora Drink work?',
+      answer: 'You log your water intake and Dora Drink tracks your progress toward your daily hydration goal.',
     },
     {
-      question: "Is Hydrify's tracking accurate?",
-      answer: 'Hydrify offers accurate tracking based on your input and recommended intake goals.',
+      question: "Is Dora Drink's tracking accurate?",
+      answer: 'Dora Drink offers accurate tracking based on your input and recommended intake goals.',
     },
     {
-      question: 'Is Hydrify free to use?',
-      answer: 'Yes, Hydrify is free with optional premium features in the future.',
+      question: 'Is Dora Drink free to use?',
+      answer: 'Yes, Dora Drink is free with optional premium features in the future.',
     },
     {
-      question: 'Can I export my Hydrify data?',
+      question: 'Can I export my Dora Drink data?',
       answer: 'This feature will be available soon in settings.',
     },
   ],
@@ -67,7 +67,7 @@ const faqData = {
     },
     {
       question: 'How do I change my password?',
-      answer: 'Currently, Hydrify does not require an account or password. All data is stored locally on your device.',
+      answer: 'Currently, Dora Drink does not require an account or password. All data is stored locally on your device.',
     },
     {
       question: 'Is my data private?',
@@ -76,8 +76,8 @@ const faqData = {
   ],
   Services: [
     {
-      question: 'Does Hydrify send reminders?',
-      answer: 'Yes, Hydrify can send you hydration reminders based on your schedule. You can customize reminders in Settings > Reminder Settings.',
+      question: 'Does Dora Drink send reminders?',
+      answer: 'Yes, Dora Drink can send you hydration reminders based on your schedule. You can customize reminders in Settings > Reminder Settings.',
     },
    
     {
@@ -96,15 +96,15 @@ const faqData = {
     },
     {
       question: 'I can\'t log my water intake.',
-      answer: 'Make sure you have the latest version of Hydrify. If the problem continues, contact support.',
+      answer: 'Make sure you have the latest version of Dora Drink. If the problem continues, contact support.',
     },
     {
       question: 'Reminders are not working.',
-      answer: 'Check your notification settings and ensure Hydrify has permission to send notifications.',
+      answer: 'Check your notification settings and ensure Dora Drink has permission to send notifications.',
     },
     {
       question: 'The app is slow or unresponsive.',
-      answer: 'Try clearing the app cache or reinstalling Hydrify. If issues persist, contact support.',
+      answer: 'Try clearing the app cache or reinstalling Dora Drink. If issues persist, contact support.',
     },
   ],
 };

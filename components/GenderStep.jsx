@@ -43,7 +43,7 @@ const skipRadius = isSmallDevice ? 12 : Math.max(16, width * 0.06);
     <View style={[styles.container, { paddingHorizontal, paddingTop }]}>
       <Text style={[styles.title, { fontSize: titleFontSize }]}>What’s your gender?</Text>
       <Text style={[styles.subtitle, { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom }]}>
-        Hydrify is here to tailor a hydration plan just for you! Let’s kick things off by getting to know you better.
+        Dora Drink is here to tailor a hydration plan just for you! Let’s kick things off by getting to know you better.
       </Text>
 
       <View style={[styles.optionsRow, { gap: optionsGap, marginBottom: optionsMarginBottom }]}>
