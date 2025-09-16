@@ -1,0 +1,81 @@
+import React, { useEffect, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Dimensions } from 'react-native';
+
+const { width, height } = Dimensions.get('window');
+const AGE_RANGE = Array.from({ length: 91 }, (_, i) => 10 + i); // Age 10 to 100
+
+const AgeStep = ({ onDataChange, selectedData = {} }) => {
+  const [selectedAge, setSelectedAge] = useState(selectedData.age || 25);
+
+  // Responsive values
+  const isSmallDevice = width < 350 || height < 650;
+
+const padding = isSmallDevice ? 8 : Math.max(16, width * 0.06);
+const titleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.07);
+const subtitleFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.045);
+const subtitleMarginBottom = isSmallDevice ? 12 : Math.max(20, height * 0.025);
+const listMaxHeight = isSmallDevice ? 140 : Math.max(180, height * 0.45);
+const listMarginVertical = isSmallDevice ? 12 : Math.max(18, height * 0.03);
+const ageItemFontSize = isSmallDevice ? 16 : Math.max(20, width * 0.06);
+const selectedAgeFontSize = isSmallDevice ? 18 : Math.max(22, width * 0.07);
+const ageItemPadding = isSmallDevice ? 2 : Math.max(4, height * 0.008);
+
+
+  // Send data back to parent when age changes
+  useEffect(() => {
+    onDataChange?.({ age: selectedAge });
+  }, [selectedAge]);
+
+  return (
+    <View style={[styles.container, { padding }]}>
+      <Text style={[styles.title, { fontSize: titleFontSize }]}>What's your age?</Text>
+      <Text style={[styles.subtitle, { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom }]}>
+        Age also impacts your body's hydration needs. Scroll and select your age:
+      </Text>
+
+      <FlatList
+        data={AGE_RANGE}
+        keyExtractor={(item) => item.toString()}
+        showsVerticalScrollIndicator={false}
+        style={{ maxHeight: listMaxHeight, marginVertical: listMarginVertical }}
+        contentContainerStyle={{ alignItems: 'center' }}
+        renderItem={({ item }) => (
+          <TouchableOpacity onPress={() => setSelectedAge(item)}>
+            <Text
+              style={[
+                styles.ageItem,
+                { fontSize: ageItemFontSize, padding: ageItemPadding },
+                item === selectedAge && { ...styles.selectedAge, fontSize: selectedAgeFontSize },
+              ]}
+            >
+              {item} years
+            </Text>
+          </TouchableOpacity>
+        )}
+      />
+    </View>
+  );
+};
+
+export default AgeStep;
+
+const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#fff' },
+  title: {
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subtitle: {
+    color: '#555',
+    textAlign: 'center',
+    paddingHorizontal: 12,
+  },
+  ageItem: {
+    color: '#999',
+  },
+  selectedAge: {
+    fontWeight: 'bold',
+    color: '#007aff',
+  },
+});
