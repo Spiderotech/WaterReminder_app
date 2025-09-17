@@ -37,9 +37,9 @@ const ContactSupportScreen = () => {
   const links = [
     { label: 'Customer Support', icon: 'headphones', url: 'mailto:support@doradrink.com' },
     { label: 'Website', icon: 'web', url: 'https://doradrink.com' },
-    { label: 'WhatsApp', icon: 'whatsapp', url: 'https://wa.me/1234567890' },
-    { label: 'Facebook', icon: 'facebook', url: 'https://facebook.com/doradrink' },
-    { label: 'Instagram', icon: 'instagram', url: 'https://instagram.com/doradrink' },
+    // { label: 'WhatsApp', icon: 'whatsapp', url: 'https://wa.me/1234567890' },
+    // { label: 'Facebook', icon: 'facebook', url: 'https://facebook.com/doradrink' },
+    // { label: 'Instagram', icon: 'instagram', url: 'https://instagram.com/doradrink' },
   ];
 
   const handleLinkPress = (url: string) => {

@@ -111,6 +111,9 @@ export async function scheduleReminderNotifications(reminders: Reminder[]) {
           sound: 'notification', // file must exist in res/raw as notification.mp3 or .wav
           pressAction: { id: 'default' },
         },
+        ios: {
+      sound: 'notification.wav', 
+    },
       },
       trigger
     );

@@ -1,4 +1,3 @@
-// All imports same as before
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -10,7 +9,8 @@ import {
   Image,
   TextInput,
   Dimensions,
-  ScrollView
+  ScrollView,
+  Platform
 } from 'react-native';
 import Feather from 'react-native-vector-icons/Feather';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -90,6 +90,7 @@ const PersonalInformationScreen = ({ navigation }) => {
   const [selectedAge, setSelectedAge] = useState(25);
   const [selectedHeight, setSelectedHeight] = useState(160);
   const [selectedWeight, setSelectedWeight] = useState(60);
+  const [selectedTime, setSelectedTime] = useState(new Date());
 
   useEffect(() => {
     const loadData = async () => {
@@ -117,6 +118,11 @@ const PersonalInformationScreen = ({ navigation }) => {
   const openModal = (field) => {
     if (field.key === 'wakeUpTime' || field.key === 'sleepTime') {
       setCurrentField(field);
+      setSelectedTime(
+        formData[field.key]
+          ? new Date(`1970-01-01T${formData[field.key]}`)
+          : new Date()
+      );
       setShowTimePicker(true);
       return;
     }
@@ -145,6 +151,25 @@ const PersonalInformationScreen = ({ navigation }) => {
 
     setModalVisible(false);
     setShowTimePicker(false);
+  };
+
+  const handleSaveTime = async (date) => {
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    const time24 = `${hours}:${minutes}`;
+
+    const updatedField = currentField.key;
+    const updatedData = {
+      ...formData,
+      [updatedField]: time24,
+    };
+
+    await updateUserProfile({ [updatedField]: time24 });
+    setFormData(updatedData);
+
+    if (['wakeUpTime', 'sleepTime'].includes(updatedField)) {
+      await refreshGoalAndReminders(updatedData);
+    }
   };
 
   const renderFieldValue = (key) => {
@@ -260,24 +285,24 @@ const PersonalInformationScreen = ({ navigation }) => {
         <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>Profile</Text>
       </View>
 
-        <View style={styles.profileContainer}>
-          <Image source={avatarSource} style={styles.avatar} />
-        </View>
+      <View style={styles.profileContainer}>
+        <Image source={avatarSource} style={styles.avatar} />
+      </View>
 
-        <View style={styles.detailsCard}>
-          <Text style={[styles.detailsTitle, { color: dark ? '#1e90ff' : '#007AFF' }]}>Profile Details</Text>
-          {fields.map((field) => (
-            <TouchableOpacity
-              key={field.key}
-              style={[styles.detailRow, { borderBottomColor: dark ? '#222' : '#f0f0f0' }]}
-              onPress={() => openModal(field)}
-            >
-              <Text style={[styles.label, { color: dark ? '#aaa' : '#777' }]}>• {field.label}</Text>
-              <Text style={[styles.valueText, { color: dark ? '#1e90ff' : '#1d8ae0' }]}>{renderFieldValue(field.key)}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-     
+      <View style={styles.detailsCard}>
+        <Text style={[styles.detailsTitle, { color: dark ? '#1e90ff' : '#007AFF' }]}>Profile Details</Text>
+        {fields.map((field) => (
+          <TouchableOpacity
+            key={field.key}
+            style={[styles.detailRow, { borderBottomColor: dark ? '#222' : '#f0f0f0' }]}
+            onPress={() => openModal(field)}
+          >
+            <Text style={[styles.label, { color: dark ? '#aaa' : '#777' }]}>• {field.label}</Text>
+            <Text style={[styles.valueText, { color: dark ? '#1e90ff' : '#1d8ae0' }]}>{renderFieldValue(field.key)}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
 
       <Modal visible={modalVisible} transparent animationType="slide">
         <View style={styles.modalOverlay}>
@@ -296,36 +321,64 @@ const PersonalInformationScreen = ({ navigation }) => {
         </View>
       </Modal>
 
-      {showTimePicker && currentField?.key && (
+      {/* Custom Modal for iOS Time Picker */}
+      {showTimePicker && Platform.OS === 'ios' && (
+        <Modal
+          visible={showTimePicker}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={() => setShowTimePicker(false)}
+        >
+          <View style={styles.timePickerOverlay}>
+            <View style={styles.timePickerContainer}>
+              <Text style={[styles.modalLabel, { color: dark ? '#000' : '#000' }]}>
+                Edit {currentField?.label}
+              </Text>
+              <DateTimePicker
+                mode="time"
+                value={selectedTime}
+                onChange={(event, newDate) => {
+                  if (newDate) {
+                    setSelectedTime(newDate);
+                  }
+                }}
+                is24Hour={true}
+                display="spinner"
+                style={styles.timePicker}
+              />
+              <View style={styles.modalActions}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={() => setShowTimePicker(false)}
+                >
+                  <Text style={styles.buttonText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={async () => {
+                    await handleSaveTime(selectedTime); // Pass the selectedTime to the function
+                    setShowTimePicker(false); // Close the modal after saving
+                  }}
+                >
+                  <Text style={styles.buttonText}>Save</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+
+      {/* Android DateTimePicker */}
+      {showTimePicker && Platform.OS === 'android' && (
         <DateTimePicker
           mode="time"
-          value={
-            formData[currentField.key]
-              ? new Date(`1970-01-01T${formData[currentField.key]}`)
-              : new Date()
-          }
-          onChange={async (event, selectedDate) => {
-            if (event.type === 'dismissed') {
-              setShowTimePicker(false);
-              return;
-            }
-
-            const hours = selectedDate.getHours().toString().padStart(2, '0');
-            const minutes = selectedDate.getMinutes().toString().padStart(2, '0');
-            const time24 = `${hours}:${minutes}`;
-
-            const updatedField = currentField.key;
-            const updatedData = {
-              ...formData,
-              [updatedField]: time24,
-            };
-
-            await updateUserProfile({ [updatedField]: time24 });
-            setFormData(updatedData);
-            setShowTimePicker(false);
-
-            if (['wakeUpTime', 'sleepTime'].includes(updatedField)) {
-              await refreshGoalAndReminders(updatedData);
+          value={selectedTime}
+          onChange={async (event, newDate) => {
+            setShowTimePicker(false); // Close the picker immediately
+            if (newDate) {
+              setSelectedTime(newDate); // Update the state with the new date
+              await handleSaveTime(newDate); // Call the save function with the new date
             }
           }}
           is24Hour={true}
@@ -338,7 +391,6 @@ const PersonalInformationScreen = ({ navigation }) => {
 
 export default PersonalInformationScreen;
 
-// Keep your styles here as before
 const styles = StyleSheet.create({
   container: { flex: 1, paddingHorizontal },
   headerRow: {
@@ -399,4 +451,37 @@ const styles = StyleSheet.create({
   icon: { width: iconSize, height: iconSize, marginRight: iconMarginR },
   cardTitle: { fontSize: cardTitleFontSize, fontWeight: '600' },
   cardDescription: { fontSize: cardDescFontSize, color: '#555' },
+  timePickerOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+  },
+  timePickerContainer: {
+    backgroundColor: 'white',
+    borderRadius: 14,
+    padding: 20,
+    width: '80%',
+    alignItems: 'center',
+  },
+  timePicker: {
+    width: '100%',
+  },
+  cancelButton: {
+    padding: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#D3D3D3',
+    marginRight: 10,
+  },
+  saveButton: {
+    padding: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    backgroundColor: '#007AFF',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: 'bold',
+  },
 });
