@@ -77,5 +77,5 @@ export const updateUserProfile = async (
 
 export const getHydrationGoal = async (): Promise<number> => {
   const stored = await AsyncStorage.getItem('hydrationGoal');
-  return stored ? parseInt(stored) : 2500; // fallback to 2500 mL
+  return stored ? parseInt(stored) : 2500; 
 };

@@ -16,7 +16,7 @@ const WEIGHT_LB = Array.from({ length: 200 }, (_, i) => 66 + i); // 66–265 lb
 
 const WeightStep = ({ selectedData = {}, onDataChange }) => {
   const [unit, setUnit] = useState(selectedData.weightUnit || 'kg');
-  const [selectedWeight, setSelectedWeight] = useState(selectedData.weight || 70);
+  const [selectedWeight, setSelectedWeight] = useState(selectedData.weight );
 
   const weights = unit === 'kg' ? WEIGHT_KG : WEIGHT_LB;
 

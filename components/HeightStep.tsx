@@ -16,7 +16,7 @@ const HEIGHT_INCH = Array.from({ length: 91 }, (_, i) => 55 + i); // 55–145 in
 
 const HeightStep = ({ selectedData = {}, onDataChange }) => {
   const [unit, setUnit] = useState(selectedData.unit || 'cm');
-  const [selectedHeight, setSelectedHeight] = useState(selectedData.height || 170);
+  const [selectedHeight, setSelectedHeight] = useState(selectedData.height );
 
   const heights = unit === 'cm' ? HEIGHT_CM : HEIGHT_INCH;
 

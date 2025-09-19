@@ -11,7 +11,7 @@ import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
 
 const { width, height } = Dimensions.get('window');
 
-const GenderStep = ({ gender, onSelect }) => {
+const GenderStep = ({ userData, onDataChange }) => {
   const isDark = useColorScheme() === 'dark';
 
   // Responsive values
@@ -48,7 +48,7 @@ const skipRadius = isSmallDevice ? 12 : Math.max(16, width * 0.06);
 
       <View style={[styles.optionsRow, { gap: optionsGap, marginBottom: optionsMarginBottom }]}>
         {genders.map((g) => {
-          const selected = gender === g.value;
+         const selected = userData.gender === g.value;
           return (
             <TouchableOpacity
               key={g.value}
@@ -56,7 +56,7 @@ const skipRadius = isSmallDevice ? 12 : Math.max(16, width * 0.06);
                 styles.genderOption,
                 selected && styles.genderOptionSelected,
               ]}
-              onPress={() => onSelect(g.value)}
+               onPress={() => onDataChange({ gender: g.value })}
             >
               <View style={[
                 styles.iconCircle,
@@ -85,7 +85,7 @@ const skipRadius = isSmallDevice ? 12 : Math.max(16, width * 0.06);
         })}
       </View>
 
-      <TouchableOpacity
+      {/* <TouchableOpacity
         style={[
           styles.skipButton,
           {
@@ -94,10 +94,10 @@ const skipRadius = isSmallDevice ? 12 : Math.max(16, width * 0.06);
             borderRadius: skipRadius,
           }
         ]}
-        onPress={() => onSelect('Prefer not to say')}
+        onPress={() => onDataChange({ gender: 'Prefer not to say' })}
       >
         <Text style={[styles.skipText, { fontSize: skipFontSize }]}>Prefer not to say</Text>
-      </TouchableOpacity>
+      </TouchableOpacity> */}
     </View>
   );
 };

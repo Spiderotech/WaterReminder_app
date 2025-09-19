@@ -54,21 +54,14 @@ const GeneratingPlanScreen = ({ navigation, route }) => {
         // 1. Save user profile
         await saveUserProfile(userData);
 
-        // 2. Generate hydration goal
-        const goal = generateWaterGoal(userData);
-        await AsyncStorage.setItem('hydrationGoal', JSON.stringify(goal));
+        // 2. Generate hydration goal range
+        const { min, max } = generateWaterGoal(userData);
 
-        // 3. Generate reminders
-        console.log(userData.wakeUpTime, userData.sleepTime, goal, 'data from onboarding');
+        // Save min & max temporarily
+        await AsyncStorage.setItem('hydrationGoalRange', JSON.stringify({ min, max }));
 
-        const reminders = generateReminders(userData.wakeUpTime, userData.sleepTime, goal);
-
-        // 4. Save reminders
-        await saveReminders(reminders);
-        await scheduleReminderNotifications(reminders);
-
-        // 5. Navigate to hydration goal screen
-        navigation.replace('HydrationGoal', { goal });
+        // 3. Navigate to goal selection screen
+        navigation.replace('HydrationGoal', { min, max, userData });
       } catch (error) {
         console.error('Error during hydration plan generation:', error);
       }
@@ -81,7 +74,7 @@ const GeneratingPlanScreen = ({ navigation, route }) => {
   }, []);
 
   return (
-   <View style={[
+    <View style={[
       styles.container,
       { backgroundColor: dark ? '#fff' : '#fff', padding }
     ]}>

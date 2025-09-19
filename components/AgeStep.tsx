@@ -5,7 +5,7 @@ const { width, height } = Dimensions.get('window');
 const AGE_RANGE = Array.from({ length: 91 }, (_, i) => 10 + i); // Age 10 to 100
 
 const AgeStep = ({ onDataChange, selectedData = {} }) => {
-  const [selectedAge, setSelectedAge] = useState(selectedData.age || 25);
+  const [selectedAge, setSelectedAge] = useState(selectedData.age );
 
   // Responsive values
   const isSmallDevice = width < 350 || height < 650;

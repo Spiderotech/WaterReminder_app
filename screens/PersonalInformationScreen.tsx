@@ -48,6 +48,7 @@ const fields = [
   { key: 'sleepTime', label: 'Bed time' },
   { key: 'activityLevel', label: 'Activity Level' },
   { key: 'climate', label: 'Climate' },
+  { key: 'hydrationGoal', label: 'Hydration Goal',isReadOnly: true },
 ];
 const { width, height } = Dimensions.get('window');
 
@@ -91,6 +92,7 @@ const PersonalInformationScreen = ({ navigation }) => {
   const [selectedHeight, setSelectedHeight] = useState(160);
   const [selectedWeight, setSelectedWeight] = useState(60);
   const [selectedTime, setSelectedTime] = useState(new Date());
+   const [hydrationGoal, setHydrationGoal] = useState<number | null>(null); // New state variable for hydration goal
 
   useEffect(() => {
     const loadData = async () => {
@@ -101,19 +103,33 @@ const PersonalInformationScreen = ({ navigation }) => {
         setSelectedHeight(profile.height || 160);
         setSelectedWeight(profile.weight || 60);
       }
+      // Load hydration goal from storage
+      const storedGoal = await AsyncStorage.getItem('hydrationGoal');
+      if (storedGoal) {
+        setHydrationGoal(parseInt(storedGoal));
+      }
       setLoading(false);
     };
     loadData();
   }, []);
 
   const refreshGoalAndReminders = async (profile) => {
-    const goal = generateWaterGoal(profile);
-    await AsyncStorage.setItem('hydrationGoal', goal.toString());
+  const { min, max } = generateWaterGoal(profile);
 
-    const reminders = generateReminders(profile.wakeUpTime, profile.sleepTime, goal);
-    await saveReminders(reminders);
-    await scheduleReminderNotifications(reminders);
-  };
+  // Load user’s last choice
+  const choice = await AsyncStorage.getItem('hydrationGoalChoice');
+  const selectedGoal = choice === 'max' ? max : min; // default min if not set
+
+  // Save selected goal again
+  await AsyncStorage.setItem('hydrationGoal', selectedGoal.toString());
+  setHydrationGoal(selectedGoal);
+
+  // Re-generate reminders with new goal
+  const reminders = generateReminders(profile.wakeUpTime, profile.sleepTime, selectedGoal);
+  await saveReminders(reminders);
+  await scheduleReminderNotifications(reminders);
+};
+
 
   const openModal = (field) => {
     if (field.key === 'wakeUpTime' || field.key === 'sleepTime') {
@@ -174,6 +190,7 @@ const PersonalInformationScreen = ({ navigation }) => {
 
   const renderFieldValue = (key) => {
     const value = formData[key];
+    if (key === 'hydrationGoal') return `${hydrationGoal} ml`; 
     if (key === 'height') return `${value} cm`;
     if (key === 'weight') return `${value} kg`;
     if (key === 'wakeUpTime' || key === 'sleepTime') {
@@ -296,6 +313,7 @@ const PersonalInformationScreen = ({ navigation }) => {
             key={field.key}
             style={[styles.detailRow, { borderBottomColor: dark ? '#222' : '#f0f0f0' }]}
             onPress={() => openModal(field)}
+            disabled={field.isReadOnly} 
           >
             <Text style={[styles.label, { color: dark ? '#aaa' : '#777' }]}>• {field.label}</Text>
             <Text style={[styles.valueText, { color: dark ? '#1e90ff' : '#1d8ae0' }]}>{renderFieldValue(field.key)}</Text>

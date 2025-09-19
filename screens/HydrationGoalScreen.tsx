@@ -1,129 +1,142 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
-  StyleSheet,
   TouchableOpacity,
+  StyleSheet,
   Dimensions,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useThemeContext } from '../ThemeContext';
-import Feather from 'react-native-vector-icons/Feather';
+import { generateReminders, saveReminders } from '../utils/reminderUtils';
+import { scheduleReminderNotifications } from '../utils/notificationUtils';
 import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
 
 const { width, height } = Dimensions.get('window');
 
-const HydrationGoalScreen = ({ navigation, route = {} }) => {
+const HydrationGoalScreen = ({ navigation, route }) => {
   const { theme } = useThemeContext();
   const dark = theme === 'dark';
 
-  const [goal, setGoal] = useState(route.params?.goal || 0);
-  const [unit, setUnit] = useState('mL');
+  const { min, max, userData } = route.params;
 
-  const units = ['mL'];
+  const [selectedGoal, setSelectedGoal] = useState(null);
+  const [unit, setUnit] = useState('mL');
 
   // Responsive values
   const isSmallDevice = width < 350 || height < 650;
-
-// Responsive values
-const padding = isSmallDevice ? 8 : Math.max(18, width * 0.06);
-const titleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.07);
-const unitBtnPaddingH = isSmallDevice ? 8 : Math.max(16, width * 0.045);
-const unitBtnPaddingV = isSmallDevice ? 4 : Math.max(8, height * 0.012);
-const unitBtnRadius = isSmallDevice ? 12 : Math.max(20, width * 0.06);
-const unitTextFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
-const goalTextFontSize = isSmallDevice ? 22 : Math.max(40, width * 0.13);
-const confirmBtnPaddingV = isSmallDevice ? 8 : Math.max(14, height * 0.018);
-const confirmBtnPaddingH = isSmallDevice ? 20 : Math.max(40, width * 0.13);
-const confirmBtnRadius = isSmallDevice ? 16 : Math.max(30, width * 0.09);
-const confirmTextFontSize = isSmallDevice ? 13 : Math.max(18, width * 0.05);
-const iconSize = isSmallDevice ? 32 : Math.max(60, width * 0.22);
-const iconMarginV = isSmallDevice ? 10 : Math.max(24, height * 0.04);
+  const padding = isSmallDevice ? 16 : Math.max(20, width * 0.06);
+  const titleFontSize = isSmallDevice ? 18 : Math.max(22, width * 0.06);
+  const goalOptionPadding = isSmallDevice ? 12 : Math.max(16, width * 0.04);
+  const goalOptionRadius = isSmallDevice ? 10 : Math.max(12, width * 0.035);
+  const goalTextFontSize = isSmallDevice ? 22 : Math.max(24, width * 0.07);
+  const subTextFontSize = isSmallDevice ? 13 : Math.max(14, width * 0.04);
+  const confirmBtnPaddingV = isSmallDevice ? 12 : Math.max(14, height * 0.018);
+  const confirmBtnPaddingH = isSmallDevice ? 30 : Math.max(40, width * 0.13);
+  const confirmBtnRadius = isSmallDevice ? 20 : Math.max(30, width * 0.09);
+  const confirmTextFontSize = isSmallDevice ? 15 : Math.max(16, width * 0.05);
+  const iconSize = isSmallDevice ? 32 : Math.max(38, width * 0.1);
 
   useEffect(() => {
-    if (!goal) {
-      AsyncStorage.getItem('hydrationGoal').then((data) => {
-        if (data) setGoal(JSON.parse(data));
-      });
-    }
-
     AsyncStorage.getItem('hydrationUnit').then((u) => {
       if (u) setUnit(u);
     });
   }, []);
 
-  const handleUnitChange = async (selectedUnit: string) => {
-    setUnit(selectedUnit);
-    await AsyncStorage.setItem('hydrationUnit', selectedUnit);
+  const confirmGoal = async () => {
+    if (!selectedGoal) return;
+
+    await AsyncStorage.setItem('hydrationGoal', JSON.stringify(selectedGoal));
+    await AsyncStorage.setItem('hydrationUnit', unit);
+    await AsyncStorage.setItem('hydrationGoalRange', JSON.stringify({ min, max }));
+
+    const choice = selectedGoal === max ? 'max' : 'min';
+    await AsyncStorage.setItem('hydrationGoalChoice', choice);
+
+    const reminders = generateReminders(
+      userData.wakeUpTime,
+      userData.sleepTime,
+      selectedGoal
+    );
+    await saveReminders(reminders);
+    await scheduleReminderNotifications(reminders);
+
+    navigation.replace('Home');
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: dark ? '#fff' : '#fff', padding }]}>
-      <Text style={[styles.title, { color: dark ? '#000' : '#000', fontSize: titleFontSize }]}>Your daily goal is</Text>
-
-      {/* Units toggle */}
-      <View style={styles.unitRow}>
-        {units.map((u) => (
-          <TouchableOpacity
-            key={u}
-            onPress={() => handleUnitChange(u)}
-            style={[
-              styles.unitBtn,
-              {
-                backgroundColor: unit === u ? '#007AFF' : 'transparent',
-                borderColor: unit === u ? '#007AFF' : dark ? '#555' : '#ccc',
-                paddingHorizontal: unitBtnPaddingH,
-                paddingVertical: unitBtnPaddingV,
-                borderRadius: unitBtnRadius,
-              },
-            ]}
-          >
-            <Text
-              style={[
-                styles.unitText,
-                { color: unit === u ? '#fff' : dark ? '#aaa' : '#444', fontSize: unitTextFontSize },
-              ]}
-            >
-              {u}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {/* Icon */}
-      <MaterialCommunityIcons
-        name="cup-water"
-        size={iconSize}
-        color="#007AFF"
-        style={{ marginVertical: iconMarginV }}
-      />
-
-      {/* Goal text */}
-      <Text style={[styles.goalText, { color: dark ? '#000' : '#000', fontSize: goalTextFontSize }]}>
-        {goal} {unit}
+    <View
+      style={[
+        styles.container,
+        { backgroundColor: dark ? '#000' : '#fff', padding },
+      ]}
+    >
+      <Text
+        style={[styles.title, { color: dark ? '#fff' : '#000', fontSize: titleFontSize }]}
+      >
+        Choose your daily hydration goal
       </Text>
 
-      {/* Confirm */}
+      <TouchableOpacity
+        style={[
+          styles.goalOption,
+          {
+            padding: goalOptionPadding,
+            borderRadius: goalOptionRadius,
+            borderColor: selectedGoal === min ? '#007AFF' : (dark ? '#333' : '#ccc'),
+            backgroundColor: selectedGoal === min ? (dark ? '#007AFF15' : '#e6f0ff') : 'transparent',
+          },
+        ]}
+        onPress={() => setSelectedGoal(min)}
+      >
+        <MaterialCommunityIcons name="cup-water"  size={iconSize} color={selectedGoal === min ? '#007AFF' : (dark ? '#fff' : '#000')} style={styles.icon} />
+        <View style={styles.textContainer}>
+          <Text style={[styles.goalText, { fontSize: goalTextFontSize, color: dark ? '#fff' : '#000' }]}>
+            {min} {unit}
+          </Text>
+          <Text style={[styles.subText, { fontSize: subTextFontSize, color: dark ? '#aaa' : '#555' }]}>Minimum goal</Text>
+        </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[
+          styles.goalOption,
+          {
+            padding: goalOptionPadding,
+            borderRadius: goalOptionRadius,
+            borderColor: selectedGoal === max ? '#007AFF' : (dark ? '#333' : '#ccc'),
+            backgroundColor: selectedGoal === max ? (dark ? '#007AFF15' : '#e6f0ff') : 'transparent',
+          },
+        ]}
+        onPress={() => setSelectedGoal(max)}
+      >
+        <MaterialCommunityIcons name="cup-water"  size={iconSize} color={selectedGoal === max ? '#007AFF' : (dark ? '#fff' : '#000')} style={styles.icon} />
+        <View style={styles.textContainer}>
+          <Text style={[styles.goalText, { fontSize: goalTextFontSize, color: dark ? '#fff' : '#000' }]}>
+            {max} {unit}
+          </Text>
+          <Text style={[styles.subText, { fontSize: subTextFontSize, color: dark ? '#aaa' : '#555' }]}>Maximum goal</Text>
+        </View>
+      </TouchableOpacity>
+
       <TouchableOpacity
         style={[
           styles.confirmBtn,
           {
-            backgroundColor: '#007AFF',
+            backgroundColor: selectedGoal ? '#007AFF' : '#ccc',
             paddingVertical: confirmBtnPaddingV,
             paddingHorizontal: confirmBtnPaddingH,
             borderRadius: confirmBtnRadius,
-            marginTop: iconMarginV,
           },
         ]}
-        onPress={() => navigation.replace('Home')}
+        disabled={!selectedGoal}
+        onPress={confirmGoal}
       >
         <Text style={[styles.confirmText, { fontSize: confirmTextFontSize }]}>Let's Hydrate!</Text>
       </TouchableOpacity>
     </View>
   );
 };
-
-export default HydrationGoalScreen;
 
 const styles = StyleSheet.create({
   container: {
@@ -133,28 +146,41 @@ const styles = StyleSheet.create({
   },
   title: {
     fontWeight: '600',
-    marginBottom: 20,
+    marginBottom: 30,
+    textAlign: 'center',
   },
-  unitRow: {
+  goalOption: {
     flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 2,
+    width: '80%',
     marginBottom: 20,
-    gap: 10,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
   },
-  unitBtn: {
-    borderWidth: 1,
-  },
-  unitText: {
-    fontWeight: '600',
+  textContainer: {
+    alignItems: 'center',
+    flex: 1,
   },
   goalText: {
     fontWeight: 'bold',
-    textAlign: 'center',
   },
-  confirmBtn: {},
+  subText: {
+    fontWeight: '500',
+  },
+  icon: {
+    marginRight: 15,
+  },
+  confirmBtn: {
+    marginTop: 30,
+    shadowColor: '#007AFF',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 8,
+  },
   confirmText: {
     color: '#fff',
     fontWeight: '600',
   },
 });
+
+export default HydrationGoalScreen;

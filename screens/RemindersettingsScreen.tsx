@@ -10,6 +10,7 @@ import {
   Alert,
   Modal,
   Dimensions,
+  ScrollView,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Feather from 'react-native-vector-icons/Feather';
@@ -65,6 +66,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
   const [time, setTime] = useState(new Date());
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedIdToDelete, setSelectedIdToDelete] = useState<string | null>(null);
+  const [showTipsModal, setShowTipsModal] = useState(false);
 
 
   const loadReminders = async () => {
@@ -165,20 +167,34 @@ const ReminderSettingsScreen = ({ navigation }) => {
     <SafeAreaView style={[styles.container, { backgroundColor: dark ? '#000' : '#fff' }]} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
         <TouchableOpacity onPress={goBack} style={styles.backIcon}>
-         <Feather name="arrow-left" size={22} color={dark ? '#fff' : '#000'} />
+          <Feather name="arrow-left" size={22} color={dark ? '#fff' : '#000'} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>Reminder</Text>
+        <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>
+          Reminder
+        </Text>
 
-        <TouchableOpacity
-          onPress={() => {
-            if (Platform.OS === 'ios') setIosPickerVisible(true);
-            else setShowPicker(true);
-          }}
-          style={styles.fabIcon}
-        >
-          <Feather name="plus" size={20} color="#fff" />
-        </TouchableOpacity>
+        {/* Right Side Buttons */}
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {/* Tips Button */}
+          <TouchableOpacity
+            onPress={() => setShowTipsModal(true)}
+            style={[styles.infoIconButton, { marginRight: 10, backgroundColor: dark ? '#444' : '#555' }]}
+          >
+            <Feather name="info" size={12} color="#fff" />
+          </TouchableOpacity>
+
+          {/* Add Reminder Button */}
+          <TouchableOpacity
+            onPress={() => {
+              if (Platform.OS === 'ios') setIosPickerVisible(true);
+              else setShowPicker(true);
+            }}
+            style={styles.fabIcon}
+          >
+            <Feather name="plus" size={20} color="#fff" />
+          </TouchableOpacity>
+        </View>
       </View>
 
 
@@ -220,10 +236,79 @@ const ReminderSettingsScreen = ({ navigation }) => {
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
+        showsVerticalScrollIndicator={false} 
       />
 
+      {/* TIPS MODAL */}
+      <Modal visible={showTipsModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.tipsBox,
+              { backgroundColor: dark ? '#1c1c1e' : '#fff' },
+            ]}
+          >
+            {/* Title */}
+            <Text
+              style={[
+                styles.tipsTitle,
+                { color: dark ? '#fff' : '#000' },
+              ]}
+            >
+              💡 Tips
+            </Text>
 
-      
+            {/* Tips List */}
+            <View style={styles.tipRow}>
+              <Feather name="plus-circle" size={20} color="#007AFF" />
+              <Text
+                style={[
+                  styles.tipText,
+                  { color: dark ? '#ccc' : '#444' },
+                ]}
+              >
+                Add a custom reminder using the  <Feather name="plus" size={20} color={dark ? '#fff' : '#000'} /> button on top.
+              </Text>
+            </View>
+
+            <View style={styles.tipRow}>
+              <Feather name="toggle-right" size={20} color="#007AFF" />
+              <Text
+                style={[
+                  styles.tipText,
+                  { color: dark ? '#ccc' : '#444' },
+                ]}
+              >
+                Pause or resume a reminder using the toggle switch.
+              </Text>
+            </View>
+
+            <View style={styles.tipRow}>
+              <Feather name="trash-2" size={20} color="#007AFF" />
+              <Text
+                style={[
+                  styles.tipText,
+                  { color: dark ? '#ccc' : '#444' },
+                ]}
+              >
+                Delete a reminder using the trash icon.
+              </Text>
+            </View>
+
+            {/* Got it Button */}
+            <TouchableOpacity
+              onPress={() => setShowTipsModal(false)}
+              style={styles.gotItButton}
+            >
+              <Text style={styles.gotItText}>Got it</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+
+
+
 
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
@@ -433,4 +518,54 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '500',
   },
+  tipsBox: {
+    width: '85%',
+    borderRadius: 16,
+    padding: 20,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    alignItems: 'flex-start',
+  },
+  tipsTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  tipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  tipText: {
+    marginLeft: 10,
+    fontSize: 15,
+    flexShrink: 1,
+  },
+  gotItButton: {
+    alignSelf: 'center',
+    marginTop: 20,
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 30,
+    paddingVertical: 12,
+    borderRadius: 25,
+  },
+  gotItText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  infoIconButton: {
+  width: fabSize * 0.65,   // smaller than add button
+  height: fabSize * 0.65,
+  borderRadius: (fabSize * 0.65) / 2,
+  backgroundColor: '#666',
+  justifyContent: 'center',
+  alignItems: 'center',
+  marginRight: 10,
+  elevation: 2,
+},
+
 });

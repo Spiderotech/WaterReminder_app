@@ -59,7 +59,7 @@ const faqData = {
   Account: [
     {
       question: 'How do I update my personal data ?',
-      answer: 'Go to Settings > Personal Information to update your name, age, weight, height, and other details.',
+      answer: 'Go to Settings > Personal Information to update your  age, weight, height, and other details.',
     },
     {
       question: 'Can I reset my account data?',
@@ -81,8 +81,8 @@ const faqData = {
     },
    
     {
-      question: 'How do I contact support?',
-      answer: 'Go to Settings > Contact Support to reach out to our team via email, WhatsApp, or social media.',
+      question: 'How do I Contact Supportt?',
+      answer: 'Go to Settings > Contact Support to reach out to our team via email.',
     },
     {
       question: 'Is there a premium version?',
@@ -92,11 +92,11 @@ const faqData = {
   Help: [
     {
       question: 'The app crashes when I open it.',
-      answer: 'Please try reinstalling the app. If the issue persists, contact support.',
+      answer: 'Please try reinstalling the app. If the issue persists, Contact Support.',
     },
     {
       question: 'I can\'t log my water intake.',
-      answer: 'Make sure you have the latest version of Dora Drink. If the problem continues, contact support.',
+      answer: 'Make sure you have the latest version of Dora Drink. If the problem continues, Contact Support.',
     },
     {
       question: 'Reminders are not working.',
@@ -104,7 +104,7 @@ const faqData = {
     },
     {
       question: 'The app is slow or unresponsive.',
-      answer: 'Try clearing the app cache or reinstalling Dora Drink. If issues persist, contact support.',
+      answer: 'Try clearing the app cache or reinstalling Dora Drink. If issues persist, Contact Support.',
     },
   ],
 };

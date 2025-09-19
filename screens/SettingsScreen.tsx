@@ -81,7 +81,7 @@ const SettingsScreen = ({ navigation }) => {
     try {
       await Share.share({
         message:
-          'Stay hydrated with HydroTrack! 💧 Download now and keep your body refreshed.',
+          'Stay hydrated with Dora Drink! 💧 Download now and keep your body refreshed.',
       });
     } catch (error) {
       console.error('Error sharing:', error);

@@ -73,6 +73,8 @@ export async function cancelAllHydrationReminders() {
 }
 
 export async function scheduleReminderNotifications(reminders: Reminder[]) {
+
+  await requestNotificationPermission();
   await cancelAllHydrationReminders(); // Cancel before scheduling new ones
   scheduledNotificationIds = [];
 
@@ -108,7 +110,7 @@ export async function scheduleReminderNotifications(reminders: Reminder[]) {
         android: {
           channelId: 'hydration-reminder-channel',
           smallIcon: 'ic_launcher',
-          sound: 'notification', // file must exist in res/raw as notification.mp3 or .wav
+          sound: 'notification', 
           pressAction: { id: 'default' },
         },
         ios: {

@@ -35,7 +35,7 @@ const PrivacyPolicyScreen = () => {
         <View style={{ width: headerIconSize }} />
       </View>
 
-      <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
+      <ScrollView contentContainerStyle={{ paddingBottom: 40 }} showsVerticalScrollIndicator={false} >
         <Text style={[styles.sectionTitle, { color: dark ? '#fff' : '#000', fontSize: sectionTitleFontSize, marginTop: sectionTitleMarginT }]}>
           1. Introduction
         </Text>

@@ -38,18 +38,14 @@ const OnboardingScreen = ({ navigation }) => {
   const scrollX = useState(new Animated.Value(0))[0];
 
   const handleNext = () => {
-    const updatedData = { ...userData, ...stepData };
-    setUserData(updatedData);
-
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
       Animated.spring(scrollX, {
         toValue: (currentStep + 1) * screenWidth,
         useNativeDriver: false,
       }).start();
-      setStepData({});
     } else {
-      navigation.replace('GeneratingPlan', { userData: updatedData });
+      navigation.replace('GeneratingPlan', { userData });
     }
   };
 
@@ -64,19 +60,19 @@ const OnboardingScreen = ({ navigation }) => {
   };
 
   const isStepValid = () => {
-    if (!stepData || Object.keys(stepData).length === 0) return false;
-
     switch (currentStep) {
-      case 0: return !!stepData.gender;
-      case 1: return !!stepData.height;
-      case 2: return !!stepData.weight;
-      case 3: return !!stepData.age;
-      case 4: return !!stepData.wakeUpTime;
-      case 5: return !!stepData.sleepTime;
-      case 6: return !!stepData.activityLevel && !!stepData.climate;
+      case 0: return !!userData.gender;
+      case 1: return !!userData.height;
+      case 2: return !!userData.weight;
+      case 3: return !!userData.age;
+      case 4: return !!userData.wakeUpTime;
+      case 5: return !!userData.sleepTime;
+      case 6: return !!userData.activityLevel && !!userData.climate;
       default: return true;
     }
   };
+
+
 
   // Responsive values
  const isSmallDevice = width < 350 || height < 650;
@@ -148,14 +144,9 @@ const continueFontSize = isSmallDevice ? 12 : Math.max(15, width * 0.045);
       >
         {steps.map((Step, index) => (
           <View key={index} style={{ width: screenWidth }}>
-            <Step
-              onDataChange={(data) => setStepData(data)}
-              {...(index === 0 && {
-                onSelect: (value) => setStepData({ gender: value }),
-                gender: stepData.gender || userData.gender,
-              })}
+           <Step
+              onDataChange={(data) => setUserData((prev) => ({ ...prev, ...data }))} // 👈 always merge into userData
               userData={userData}
-              selectedData={stepData}
               navigation={navigation}
             />
           </View>

@@ -41,7 +41,7 @@ const MainApp = () => {
  
 
   return (
-    <NavigationContainer theme={theme === 'dark' ? DarkTheme : DefaultTheme}>
+    <NavigationContainer theme={theme === 'dark' ? DarkTheme : DefaultTheme} >
       <StatusBar
         backgroundColor={theme === 'dark' ? '#000000' : '#ffffff'} // ← Fix here
         barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}
