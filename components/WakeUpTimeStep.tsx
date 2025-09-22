@@ -1,11 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  Dimensions,
-} from 'react-native';
+import { View, Text, StyleSheet, FlatList, Dimensions } from 'react-native';
+import { useThemeContext } from '../ThemeContext';
 
 const ITEM_HEIGHT = 50;
 const hours = Array.from({ length: 12 }, (_, i) => i + 1); // 1–12
@@ -24,7 +19,6 @@ const subtitleMarginBottom = isSmallDevice ? 20 : Math.max(30, height * 0.03);
 const colonFontSize = isSmallDevice ? 18 : Math.max(24, width * 0.07);
 const colonMarginH = isSmallDevice ? 4 : Math.max(8, width * 0.02);
 
-
 const formatToHHMM = (hour: number, minute: string, suffix: string): string => {
   let h = hour;
   if (suffix === 'PM' && hour !== 12) h += 12;
@@ -33,19 +27,16 @@ const formatToHHMM = (hour: number, minute: string, suffix: string): string => {
 };
 
 const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
+  const { theme } = useThemeContext();
+  const dark = theme === 'dark';
+
   const defaultDate = selectedData.wakeUpTime
     ? new Date(`1970-01-01T${selectedData.wakeUpTime}`)
     : null;
 
-  const initialHour = defaultDate
-    ? ((defaultDate.getHours() % 12) || 12)
-    : 7;
-  const initialMinute = defaultDate
-    ? defaultDate.getMinutes().toString().padStart(2, '0')
-    : '00';
-  const initialSuffix = defaultDate
-    ? defaultDate.getHours() >= 12 ? 'PM' : 'AM'
-    : 'AM';
+  const initialHour = defaultDate ? ((defaultDate.getHours() % 12) || 12) : 7;
+  const initialMinute = defaultDate ? defaultDate.getMinutes().toString().padStart(2, '0') : '00';
+  const initialSuffix = defaultDate ? (defaultDate.getHours() >= 12 ? 'PM' : 'AM') : 'AM';
 
   const [selectedHour, setSelectedHour] = useState(initialHour);
   const [selectedMinute, setSelectedMinute] = useState(initialMinute);
@@ -69,9 +60,7 @@ const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
         index,
       })}
       snapToInterval={ITEM_HEIGHT}
-      initialScrollIndex={
-        Math.max(0, data.findIndex((v) => v === selectedValue))
-      }
+      initialScrollIndex={Math.max(0, data.findIndex((v) => v === selectedValue))}
       decelerationRate="fast"
       onMomentumScrollEnd={(e) => {
         const index = Math.round(e.nativeEvent.contentOffset.y / ITEM_HEIGHT);
@@ -84,7 +73,13 @@ const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
         setSelectedValue(data[clampedIndex]);
       }}
       renderItem={({ item }) => (
-        <Text style={[styles.pickerItem, selectedValue === item && styles.selectedItem]}>
+        <Text
+          style={[
+            styles.pickerItem,
+            { color: dark ? '#ccc' : '#999' },
+            selectedValue === item && { ...styles.selectedItem, color: '#007aff' },
+          ]}
+        >
           {item}
         </Text>
       )}
@@ -92,9 +87,16 @@ const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
   );
 
   return (
-    <View style={[styles.container, { padding }]}>
-      <Text style={[styles.title, { fontSize: titleFontSize }]}>When do you usually wake up?</Text>
-      <Text style={[styles.subtitle, { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom }]}>
+    <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
+      <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>
+        When do you usually wake up?
+      </Text>
+      <Text
+        style={[
+          styles.subtitle,
+          { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom, color: dark ? '#aaa' : '#555' },
+        ]}
+      >
         We'll schedule hydration reminders starting from your wake-up time.
       </Text>
 
@@ -111,19 +113,9 @@ const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
 export default WakeUpTimeStep;
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 10,
-  },
-  subtitle: {
-    color: '#555',
-    textAlign: 'center',
-  },
+  container: { flex: 1 },
+  title: { fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
+  subtitle: { textAlign: 'center' },
   pickerRow: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -131,27 +123,9 @@ const styles = StyleSheet.create({
     height: 250,
     marginBottom: 30,
   },
-  picker: {
-    height: 150,
-    width: 60,
-  },
-  colon: {
-    fontWeight: 'bold',
-    color: '#007aff',
-  },
-  pickerItem: {
-    height: ITEM_HEIGHT,
-    fontSize: 24,
-    color: '#999',
-    textAlign: 'center',
-    lineHeight: ITEM_HEIGHT,
-  },
-  selectedItem: {
-    color: '#007aff',
-    fontWeight: 'bold',
-    fontSize: 32,
-  },
-  centerItems: {
-    paddingVertical: 50,
-  },
+  picker: { height: 150, width: 60 },
+  colon: { fontWeight: 'bold', color: '#007aff' },
+  pickerItem: { height: ITEM_HEIGHT, fontSize: 24, textAlign: 'center', lineHeight: ITEM_HEIGHT },
+  selectedItem: { fontWeight: 'bold', fontSize: 32 },
+  centerItems: { paddingVertical: 50 },
 });

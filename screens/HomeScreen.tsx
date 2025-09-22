@@ -23,6 +23,7 @@ import { useThemeContext } from '../ThemeContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { logWaterIntake, getTodayLogs, deleteWaterLog } from '../utils/waterIntakeUtils';
 import { getHydrationGoal } from '../utils/userUtils';
+import LottieView from 'lottie-react-native';
 
 
 const { width, height } = Dimensions.get('window');
@@ -110,6 +111,7 @@ const HomeScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [customAmount, setCustomAmount] = useState('');
   const [customInputVisible, setCustomInputVisible] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
 
   const [goal, setGoal] = useState(2500);
 
@@ -265,6 +267,14 @@ const HomeScreen = () => {
     }
   };
 
+  useEffect(() => {
+    if (intake >= goal && !showCelebration) {
+      setShowCelebration(true);
+      // Auto-hide after 4s
+      setTimeout(() => setShowCelebration(false), 4000);
+    }
+  }, [intake, goal]);
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: dark ? '#000' : '#fff' }]} edges={['top']}>
       {/* Header */}
@@ -312,7 +322,7 @@ const HomeScreen = () => {
             <View style={{ marginTop: 20, alignItems: 'center' }}>
               <MaterialCommunityIcons name="trophy" size={36} color="#007AFF" />
               <Text style={{ color: '#007AFF', fontWeight: 'bold', fontSize: 16, marginTop: 8 }}>
-                🎉 Today’s Goal Achieved!
+                Today’s Goal Achieved!
               </Text>
             </View>
           ) : (
@@ -320,7 +330,7 @@ const HomeScreen = () => {
               style={[styles.drinkBtn, { backgroundColor: '#007AFF' }]}
               onPress={handleDrink}
             >
-              <Text style={styles.drinkBtnText}>Drink ({selectedCup} mL)</Text>
+              <Text style={styles.drinkBtnText}>Tap ({selectedCup} mL)</Text>
             </TouchableOpacity>
           )}
 
@@ -433,7 +443,7 @@ const HomeScreen = () => {
                   keyboardType="numeric"
                   placeholder="Enter amount"
                   placeholderTextColor={dark ? '#aaa' : '#999'}
-                  style={[styles.input, { borderColor: dark ? '#333' : '#ccc', color: dark ? '#fff' : '#000' }]}
+                  style={[styles.input, { borderColor: dark ? '#333' : '#ccc', color: dark ? '#000' : '#000' }]}
                   value={customAmount}
                   onChangeText={setCustomAmount}
                 />
@@ -448,6 +458,17 @@ const HomeScreen = () => {
           </View>
         </View>
       </Modal>
+      {showCelebration && (
+        <View style={styles.celebrationOverlay}>
+          <LottieView
+            source={require('../assets/confetti.json')}
+            autoPlay
+            loop={false}
+            style={{ width: width, height: height }}
+          />
+        </View>
+      )}
+
     </SafeAreaView>
   );
 };
@@ -461,7 +482,7 @@ const styles = StyleSheet.create({
     width: logoSize,
     height: logoSize,
     marginRight: 8,
-    borderRadius:10,
+    borderRadius: 10,
   },
   headerTitle: { fontSize: headerTitleFontSize, fontWeight: 'bold' },
   dropContainer: { height: 100, justifyContent: 'center', alignItems: 'center' },
@@ -542,4 +563,15 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   modalClose: { textAlign: 'center', marginTop: modalCloseMarginT },
+  celebrationOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 999,
+  },
+
 });

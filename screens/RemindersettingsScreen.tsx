@@ -23,7 +23,7 @@ import {
   updateReminder as updateReminderUtil,
   Reminder,
 } from '../utils/reminderUtils';
-import { scheduleReminderNotifications } from '../utils/notificationUtils';
+import { scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
 import notifee from '@notifee/react-native';
 const { width, height } = Dimensions.get('window');
 
@@ -72,7 +72,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
   const loadReminders = async () => {
     const data = await getReminders();
     setReminders(data);
-    await scheduleReminderNotifications(data); // Ensure scheduling happens on load
+    await scheduleRemindersIfGoalNotReached(); 
   };
 
   useEffect(() => {
@@ -122,7 +122,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
 
         const updated = await addReminderUtil(formatted24);
         setReminders(updated);
-        await scheduleReminderNotifications(updated);
+        await scheduleRemindersIfGoalNotReached(); 
       }
     } else {
       // For iOS, the picker continuously updates the state, but we don't call
@@ -143,7 +143,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
 
       await notifee.cancelNotification(reminder.id); // Cancel if turning off
     } else {
-      await scheduleReminderNotifications(updated); // Re-schedule all if turning on
+      await scheduleRemindersIfGoalNotReached(); // Re-schedule all if turning on
     }
   };
 
@@ -156,7 +156,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
     if (selectedIdToDelete) {
       const updated = await deleteReminderUtil(selectedIdToDelete);
       setReminders(updated);
-      await scheduleReminderNotifications(updated);
+      await scheduleRemindersIfGoalNotReached();
       setSelectedIdToDelete(null);
       setShowDeleteModal(false);
     }
@@ -236,7 +236,7 @@ const ReminderSettingsScreen = ({ navigation }) => {
           </View>
         )}
         contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false} 
+        showsVerticalScrollIndicator={false}
       />
 
       {/* TIPS MODAL */}
@@ -323,18 +323,35 @@ const ReminderSettingsScreen = ({ navigation }) => {
       <Modal visible={iosPickerVisible} animationType="slide" transparent>
         <View style={styles.iosPickerContainer}>
           <View style={styles.iosPicker}>
-            <TouchableOpacity
-              style={styles.doneButton}
-              onPress={async () => {
-                const formatted24 = time.toTimeString().split(':').slice(0, 2).join(':');
-                const updated = await addReminderUtil(formatted24);
-                setReminders(updated);
-                await scheduleReminderNotifications(updated);
-                setIosPickerVisible(false);
-              }}
-            >
-              <Text style={styles.doneText}>Done</Text>
-            </TouchableOpacity>
+            {/* Header Row with Cancel + Done */}
+            <View style={styles.iosPickerHeader}>
+              <TouchableOpacity
+                onPress={() => setIosPickerVisible(false)}
+                style={styles.iosPickerButton}
+              >
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={async () => {
+                  const formatted24 = time
+                    .toTimeString()
+                    .split(':')
+                    .slice(0, 2)
+                    .join(':');
+
+                  const updated = await addReminderUtil(formatted24);
+                  setReminders(updated);
+                 await scheduleRemindersIfGoalNotReached();
+                  setIosPickerVisible(false);
+                }}
+                style={styles.iosPickerButton}
+              >
+                <Text style={styles.doneText}>Done</Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* iOS Time Picker */}
             <DateTimePicker
               mode="time"
               value={time}
@@ -342,10 +359,12 @@ const ReminderSettingsScreen = ({ navigation }) => {
               is24Hour={true}
               display="spinner"
               style={{ backgroundColor: '#fff' }}
+              textColor="#000"
             />
           </View>
         </View>
       </Modal>
+
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
           <View style={[styles.alertBox, { backgroundColor: dark ? '#222' : '#fff' }]}>
@@ -558,14 +577,29 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   infoIconButton: {
-  width: fabSize * 0.65,   // smaller than add button
-  height: fabSize * 0.65,
-  borderRadius: (fabSize * 0.65) / 2,
-  backgroundColor: '#666',
-  justifyContent: 'center',
+    width: fabSize * 0.65,   // smaller than add button
+    height: fabSize * 0.65,
+    borderRadius: (fabSize * 0.65) / 2,
+    backgroundColor: '#666',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+    elevation: 2,
+  },
+
+  iosPickerHeader: {
+  flexDirection: 'row',
+  justifyContent: 'space-between',
   alignItems: 'center',
-  marginRight: 10,
-  elevation: 2,
+  paddingHorizontal: 16,
+  paddingVertical: 10,
+  borderBottomWidth: 1,
+  borderBottomColor: '#ddd',
 },
+iosPickerButton: {
+  paddingHorizontal: 10,
+  paddingVertical: 6,
+},
+
 
 });

@@ -44,10 +44,11 @@ export const updateReminder = async (id: string, changes: Partial<Reminder>) => 
 };
 
 // Generate reminders based on hydration goal (e.g., 8 reminders/day)
+// utils/reminderUtils.ts
 export const generateReminders = (
   wakeTime: string,
   sleepTime: string,
-  goal: number
+  reminderCount: number
 ): Reminder[] => {
   const reminders: Reminder[] = [];
   const now = new Date();
@@ -76,15 +77,11 @@ export const generateReminders = (
   }
 
   const totalMs = end.getTime() - start.getTime();
-  const MIN_INTERVAL_MS = 75 * 60 * 1000; // 75 minutes
-  const maxReminders = Math.floor(totalMs / MIN_INTERVAL_MS);
-  const safeReminderCount = Math.min(goal, maxReminders);
+  if (reminderCount <= 0) return [];
 
-  if (safeReminderCount <= 0) return [];
+  const intervalMs = totalMs / reminderCount;
 
-  const intervalMs = totalMs / safeReminderCount;
-
-  for (let i = 0; i < safeReminderCount; i++) {
+  for (let i = 0; i < reminderCount; i++) {
     const time = new Date(start.getTime() + i * intervalMs);
 
     reminders.push({
@@ -96,5 +93,6 @@ export const generateReminders = (
 
   return reminders;
 };
+
 
 

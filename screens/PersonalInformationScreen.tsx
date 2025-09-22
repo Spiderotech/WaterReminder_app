@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getUserProfile, updateUserProfile } from '../utils/userUtils';
 import { generateWaterGoal } from '../utils/hydrationUtils';
 import { generateReminders, saveReminders } from '../utils/reminderUtils';
-import { scheduleReminderNotifications } from '../utils/notificationUtils';
+import { scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
 
 const HEIGHT_CM = Array.from({ length: 101 }, (_, i) => 110 + i);
 const AGE_YEARS = Array.from({ length: 83 }, (_, i) => 18 + i);
@@ -48,7 +48,7 @@ const fields = [
   { key: 'sleepTime', label: 'Bed time' },
   { key: 'activityLevel', label: 'Activity Level' },
   { key: 'climate', label: 'Climate' },
-  { key: 'hydrationGoal', label: 'Hydration Goal',isReadOnly: true },
+  { key: 'hydrationGoal', label: 'Hydration Goal', isReadOnly: true },
 ];
 const { width, height } = Dimensions.get('window');
 
@@ -92,7 +92,7 @@ const PersonalInformationScreen = ({ navigation }) => {
   const [selectedHeight, setSelectedHeight] = useState(160);
   const [selectedWeight, setSelectedWeight] = useState(60);
   const [selectedTime, setSelectedTime] = useState(new Date());
-   const [hydrationGoal, setHydrationGoal] = useState<number | null>(null); // New state variable for hydration goal
+  const [hydrationGoal, setHydrationGoal] = useState<number | null>(null); // New state variable for hydration goal
 
   useEffect(() => {
     const loadData = async () => {
@@ -113,22 +113,53 @@ const PersonalInformationScreen = ({ navigation }) => {
     loadData();
   }, []);
 
-  const refreshGoalAndReminders = async (profile) => {
-  const { min, max } = generateWaterGoal(profile);
+  const refreshGoalAndReminders = async (profile, updatedField?: string) => {
+    const choice = await AsyncStorage.getItem('hydrationGoalChoice');
 
-  // Load user’s last choice
-  const choice = await AsyncStorage.getItem('hydrationGoalChoice');
-  const selectedGoal = choice === 'max' ? max : min; // default min if not set
+    if (choice === 'custom') {
+      // Keep user’s custom goal fixed
+      const storedGoal = await AsyncStorage.getItem('hydrationGoal');
+      if (storedGoal) {
+        setHydrationGoal(parseInt(storedGoal));
+      }
 
-  // Save selected goal again
-  await AsyncStorage.setItem('hydrationGoal', selectedGoal.toString());
-  setHydrationGoal(selectedGoal);
+      // 🔹 But regenerate reminders if sleep/wake time changed
+      if (updatedField === 'wakeUpTime' || updatedField === 'sleepTime') {
+        const reminderCount =
+          parseInt(storedGoal || '0') > 1000 ? 5 : 3;
 
-  // Re-generate reminders with new goal
-  const reminders = generateReminders(profile.wakeUpTime, profile.sleepTime, selectedGoal);
-  await saveReminders(reminders);
-  await scheduleReminderNotifications(reminders);
-};
+        const reminders = generateReminders(
+          profile.wakeUpTime,
+          profile.sleepTime,
+          reminderCount
+        );
+
+        await saveReminders(reminders);
+        await scheduleRemindersIfGoalNotReached();
+      }
+      return;
+    }
+
+    // 🔹 Normal flow for min/max
+    const { min, max } = generateWaterGoal(profile);
+    const selectedGoal = choice === 'max' ? max : min;
+
+    await AsyncStorage.setItem('hydrationGoal', selectedGoal.toString());
+    setHydrationGoal(selectedGoal);
+
+    const reminderCount = choice === 'max' ? 8 : 5;
+    const reminders = generateReminders(
+      profile.wakeUpTime,
+      profile.sleepTime,
+      reminderCount
+    );
+
+    await saveReminders(reminders);
+    await scheduleRemindersIfGoalNotReached();
+  };
+
+
+
 
 
   const openModal = (field) => {
@@ -162,7 +193,7 @@ const PersonalInformationScreen = ({ navigation }) => {
     setFormData(updatedProfile);
 
     if (['age', 'weight', 'height'].includes(currentField.key)) {
-      await refreshGoalAndReminders(updatedProfile);
+      await refreshGoalAndReminders(updatedProfile, currentField.key);
     }
 
     setModalVisible(false);
@@ -184,13 +215,13 @@ const PersonalInformationScreen = ({ navigation }) => {
     setFormData(updatedData);
 
     if (['wakeUpTime', 'sleepTime'].includes(updatedField)) {
-      await refreshGoalAndReminders(updatedData);
+      await refreshGoalAndReminders(updatedData, updatedField);
     }
   };
 
   const renderFieldValue = (key) => {
     const value = formData[key];
-    if (key === 'hydrationGoal') return `${hydrationGoal} ml`; 
+    if (key === 'hydrationGoal') return `${hydrationGoal} ml`;
     if (key === 'height') return `${value} cm`;
     if (key === 'weight') return `${value} kg`;
     if (key === 'wakeUpTime' || key === 'sleepTime') {
@@ -313,7 +344,7 @@ const PersonalInformationScreen = ({ navigation }) => {
             key={field.key}
             style={[styles.detailRow, { borderBottomColor: dark ? '#222' : '#f0f0f0' }]}
             onPress={() => openModal(field)}
-            disabled={field.isReadOnly} 
+            disabled={field.isReadOnly}
           >
             <Text style={[styles.label, { color: dark ? '#aaa' : '#777' }]}>• {field.label}</Text>
             <Text style={[styles.valueText, { color: dark ? '#1e90ff' : '#1d8ae0' }]}>{renderFieldValue(field.key)}</Text>
@@ -363,6 +394,7 @@ const PersonalInformationScreen = ({ navigation }) => {
                 is24Hour={true}
                 display="spinner"
                 style={styles.timePicker}
+                textColor="#000"
               />
               <View style={styles.modalActions}>
                 <TouchableOpacity

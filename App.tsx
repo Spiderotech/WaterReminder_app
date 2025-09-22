@@ -20,7 +20,7 @@ import TermsOfServiceScreen from './screens/TermsOfServiceScreen';
 import { ThemeProvider, useThemeContext } from './ThemeContext';
 import GeneratingPlanScreen from './screens/GeneratingPlanScreen';
 import HydrationGoalScreen from './screens/HydrationGoalScreen';
-import { createNotificationChannel, requestNotificationPermission, scheduleReminderNotifications } from './utils/notificationUtils';
+import { createNotificationChannel, requestNotificationPermission, scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from './utils/notificationUtils';
 import { getReminders } from './utils/reminderUtils';
 
 
@@ -34,7 +34,7 @@ const MainApp = () => {
     await requestNotificationPermission();
     await createNotificationChannel();
     const reminders = await getReminders(); // 🆕
-    await scheduleReminderNotifications(reminders); // 🆕
+   await scheduleRemindersIfGoalNotReached(); 
   };
   initNotifications();
 }, []);

@@ -12,10 +12,7 @@ import LottieView from 'lottie-react-native';
 
 import { generateWaterGoal } from '../utils/hydrationUtils';
 import { saveUserProfile } from '../utils/userUtils';
-import { generateReminders, saveReminders } from '../utils/reminderUtils';
-import { scheduleReminderNotifications } from '../utils/notificationUtils';
 import { useThemeContext } from '../ThemeContext';
-
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 350 || height < 650;
@@ -73,21 +70,18 @@ const GeneratingPlanScreen = ({ navigation, route }) => {
     };
   }, []);
 
+  // Colors based on theme
+  const backgroundColor = dark ? '#121212' : '#fff';
+  const titleColor = dark ? '#fff' : '#000';
+  const subtitleColor = dark ? '#ccc' : '#777';
+  const footerColor = dark ? '#aaa' : '#777';
+
   return (
-    <View style={[
-      styles.container,
-      { backgroundColor: dark ? '#fff' : '#fff', padding }
-    ]}>
-      <Text style={[
-        styles.title,
-        { color: dark ? '#000' : '#000', fontSize: titleFontSize }
-      ]}>
+    <View style={[styles.container, { backgroundColor, padding }]}>
+      <Text style={[styles.title, { color: titleColor, fontSize: titleFontSize }]}>
         Generating personalized hydration plan for you...
       </Text>
-      <Text style={[
-        styles.subtitle,
-        { color: dark ? '#777' : '#777', fontSize: subtitleFontSize }
-      ]}>
+      <Text style={[styles.subtitle, { color: subtitleColor, fontSize: subtitleFontSize }]}>
         Please wait...
       </Text>
 
@@ -98,10 +92,7 @@ const GeneratingPlanScreen = ({ navigation, route }) => {
         style={{ width: lottieSize, height: lottieSize, marginBottom: lottieMarginB }}
       />
 
-      <Text style={[
-        styles.footer,
-        { color: dark ? '#777' : '#777', fontSize: footerFontSize }
-      ]}>
+      <Text style={[styles.footer, { color: footerColor, fontSize: footerFontSize }]}>
         This will just take a moment. Get ready to transform your hydration journey!
       </Text>
     </View>
@@ -113,6 +104,6 @@ export default GeneratingPlanScreen;
 const styles = StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { fontWeight: '600', textAlign: 'center', marginBottom: 10 },
-  subtitle: { marginBottom: 30 },
+  subtitle: { marginBottom: 30, textAlign: 'center' },
   footer: { textAlign: 'center', paddingHorizontal: 10 },
 });

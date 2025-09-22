@@ -5,13 +5,18 @@ import notifee, {
   AuthorizationStatus,
 } from '@notifee/react-native';
 import { Platform, PermissionsAndroid, Linking, Alert } from 'react-native';
-import { Reminder } from './reminderUtils';
+import { getReminders, Reminder } from './reminderUtils';
 import {
   checkPermission as checkExactAlarmPermission,
   getPermission as requestExactAlarmPermission,
 } from 'react-native-schedule-exact-alarm-permission';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getTodayTotalIntake } from './waterIntakeUtils';
 
 let scheduledNotificationIds: string[] = [];
+
+const WATER_INTAKE_KEY = 'dailyWaterIntake';
+const WATER_GOAL_KEY = 'hydrationGoal';
 
 export async function requestNotificationPermission() {
   // 1. Android 13+ POST_NOTIFICATIONS permission
@@ -72,10 +77,45 @@ export async function cancelAllHydrationReminders() {
   console.log('🚫 All hydration reminders canceled');
 }
 
-export async function scheduleReminderNotifications(reminders: Reminder[]) {
+const getLocalDateString = (timestamp: number) => {
+  return new Date(timestamp).toLocaleDateString('en-CA'); // YYYY-MM-DD
+};
 
-  await requestNotificationPermission();
-  await cancelAllHydrationReminders(); // Cancel before scheduling new ones
+// Cancel only today’s notifications
+async function cancelTodaysNotifications() {
+  const notifications = await notifee.getTriggerNotifications();
+  const todayStr = getLocalDateString(Date.now());
+
+  for (const notif of notifications) {
+    const trigger = notif.notification?.trigger as any;
+    if (trigger?.type === 'timestamp' && trigger.timestamp) {
+      if (getLocalDateString(trigger.timestamp) === todayStr) {
+        await notifee.cancelNotification(notif.id);
+        console.log(`🚫 Canceled today’s notification: ${notif.id}`);
+        
+      }
+    }
+  }
+}
+
+export async function scheduleRemindersIfGoalNotReached() {
+  const totalIntake = await getTodayTotalIntake();
+  const goalStr = await AsyncStorage.getItem('hydrationGoal');
+  const goal = goalStr ? parseInt(goalStr) : 0;
+
+  if (totalIntake >= goal) {
+    console.log('💧 Daily goal reached, canceling reminders');
+    await cancelTodaysNotifications();
+    return;
+  }
+
+  // Goal not reached → schedule reminders
+  const reminders = await getReminders();
+  await scheduleReminderNotifications(reminders);
+}
+
+export async function scheduleReminderNotifications(reminders: Reminder[]) {
+  await cancelAllHydrationReminders(); 
   scheduledNotificationIds = [];
 
   for (const reminder of reminders) {
