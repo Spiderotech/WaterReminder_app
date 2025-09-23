@@ -222,7 +222,7 @@ const HistoryScreen = () => {
               </Text>
             </View>
           ) : (
-            <View style={{ maxHeight: 300 }}>
+            <View >
               <FlatList
                 data={history}
                 keyExtractor={(item) => item.id.toString()}

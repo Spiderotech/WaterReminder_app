@@ -40,27 +40,27 @@ export async function requestNotificationPermission() {
   console.log('✅ Notification permission granted');
 
   // 3. Android 12+ exact alarm permission (API 31+)
-  if (Platform.OS === 'android' && Platform.Version >= 31) {
-    const exactAlarmGranted = await checkExactAlarmPermission();
+  // if (Platform.OS === 'android' && Platform.Version >= 31) {
+  //   const exactAlarmGranted = await checkExactAlarmPermission();
 
-    if (!exactAlarmGranted) {
-      console.warn('⚠️ SCHEDULE_EXACT_ALARM not granted. Prompting user...');
-      Alert.alert(
-        'Enable Exact Alarms',
-        'To get exact hydration reminders, please enable "Schedule exact alarms" in system settings.',
-        [
-          {
-            text: 'Open Settings',
-            onPress: () => requestExactAlarmPermission(),
-          },
-          { text: 'Cancel', style: 'cancel' },
-        ]
-      );
-      return;
-    }
+  //   if (!exactAlarmGranted) {
+  //     console.warn('⚠️ SCHEDULE_EXACT_ALARM not granted. Prompting user...');
+  //     Alert.alert(
+  //       'Enable Exact Alarms',
+  //       'To get exact hydration reminders, please enable "Schedule exact alarms" in system settings.',
+  //       [
+  //         {
+  //           text: 'Open Settings',
+  //           onPress: () => requestExactAlarmPermission(),
+  //         },
+  //         { text: 'Cancel', style: 'cancel' },
+  //       ]
+  //     );
+  //     return;
+  //   }
 
-    console.log('✅ SCHEDULE_EXACT_ALARM permission granted');
-  }
+  //   console.log('✅ SCHEDULE_EXACT_ALARM permission granted');
+  // }
 }
 
 export async function createNotificationChannel() {

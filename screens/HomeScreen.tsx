@@ -112,6 +112,8 @@ const HomeScreen = () => {
   const [customAmount, setCustomAmount] = useState('');
   const [customInputVisible, setCustomInputVisible] = useState(false);
   const [showCelebration, setShowCelebration] = useState(false);
+  
+
 
   const [goal, setGoal] = useState(2500);
 
@@ -179,10 +181,6 @@ const HomeScreen = () => {
       };
     }, [])
   );
-
-
-
-
 
 
   const handleDrink = async () => {

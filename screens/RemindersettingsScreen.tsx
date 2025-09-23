@@ -25,7 +25,9 @@ import {
 } from '../utils/reminderUtils';
 import { scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
 import notifee from '@notifee/react-native';
+import { needsExactAlarmPermission } from '../utils/exactAlarmPermission';
 const { width, height } = Dimensions.get('window');
+import { getPermission as requestExactAlarmPermission } from 'react-native-schedule-exact-alarm-permission';
 
 
 const isSmallDevice = width < 350 || height < 650;
@@ -67,17 +69,35 @@ const ReminderSettingsScreen = ({ navigation }) => {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedIdToDelete, setSelectedIdToDelete] = useState<string | null>(null);
   const [showTipsModal, setShowTipsModal] = useState(false);
+  const [showExactAlarmCard, setShowExactAlarmCard] = useState(false);
 
 
-  const loadReminders = async () => {
-    const data = await getReminders();
-    setReminders(data);
-    await scheduleRemindersIfGoalNotReached(); 
-  };
 
   useEffect(() => {
-    loadReminders();
-  }, []);
+  const init = async () => {
+    // 1️⃣ Load reminders
+    const data = await getReminders();
+    setReminders(data);
+    await scheduleRemindersIfGoalNotReached();
+
+    // 2️⃣ Check exact alarm permission (Android 12+)
+    if (Platform.OS === 'android' && Platform.Version >= 31) {
+      const granted = await needsExactAlarmPermission(); // your existing util
+      setShowExactAlarmCard(granted); // true if permission NOT granted
+    }
+  };
+
+  init();
+}, []);
+
+const handleOpenExactAlarmSettings = async () => {
+  // Open permission/settings
+  // You already have a function for this, call it here
+  await requestExactAlarmPermission();
+  setShowExactAlarmCard(false); // hide card after opening settings
+};
+
+
 
   const getScheduledInfo = (time: string) => {
     const [hourStr, minStr, secStr = '0'] = time.split(':');
@@ -197,7 +217,25 @@ const ReminderSettingsScreen = ({ navigation }) => {
         </View>
       </View>
 
-
+{showExactAlarmCard && (
+    <View
+      style={[
+        styles.exactAlarmCard,
+        { backgroundColor: dark ? '#111' : '#fff', borderColor: dark ? '#333' : '#eee' },
+      ]}
+    >
+      <Text style={[styles.exactAlarmTitle, { color: dark ? '#fff' : '#000' }]}>
+        Enable Exact Alarms
+      </Text>
+      <Text style={[styles.exactAlarmMessage, { color: dark ? '#aaa' : '#666' }]}>
+        To get accurate hydration reminders, please enable{" "}
+        <Text style={{ fontWeight: 'bold' }}>"Schedule exact alarms"</Text> in system settings.
+      </Text>
+      <TouchableOpacity style={styles.exactAlarmBtn} onPress={handleOpenExactAlarmSettings}>
+        <Text style={styles.exactAlarmBtnText}>Open Settings</Text>
+      </TouchableOpacity>
+    </View>
+  )}
 
 
       <FlatList
@@ -305,11 +343,6 @@ const ReminderSettingsScreen = ({ navigation }) => {
           </View>
         </View>
       </Modal>
-
-
-
-
-
       {showPicker && Platform.OS === 'android' && (
         <DateTimePicker
           mode="time"
@@ -599,6 +632,33 @@ const styles = StyleSheet.create({
 iosPickerButton: {
   paddingHorizontal: 10,
   paddingVertical: 6,
+},
+exactAlarmCard: {
+  padding: 16,
+  borderWidth: 1.5,
+  borderRadius: 16,
+  marginVertical: 10,
+  marginHorizontal: 0,
+},
+exactAlarmTitle: {
+  fontSize: 16,
+  fontWeight: '700',
+  marginBottom: 6,
+},
+exactAlarmMessage: {
+  fontSize: 14,
+  marginBottom: 12,
+},
+exactAlarmBtn: {
+  backgroundColor: '#007AFF',
+  paddingVertical: 8,
+  paddingHorizontal: 16,
+  borderRadius: 10,
+  alignSelf: 'flex-start',
+},
+exactAlarmBtnText: {
+  color: '#fff',
+  fontWeight: '600',
 },
 
 
