@@ -39,28 +39,7 @@ export async function requestNotificationPermission() {
 
   console.log('✅ Notification permission granted');
 
-  // 3. Android 12+ exact alarm permission (API 31+)
-  // if (Platform.OS === 'android' && Platform.Version >= 31) {
-  //   const exactAlarmGranted = await checkExactAlarmPermission();
-
-  //   if (!exactAlarmGranted) {
-  //     console.warn('⚠️ SCHEDULE_EXACT_ALARM not granted. Prompting user...');
-  //     Alert.alert(
-  //       'Enable Exact Alarms',
-  //       'To get exact hydration reminders, please enable "Schedule exact alarms" in system settings.',
-  //       [
-  //         {
-  //           text: 'Open Settings',
-  //           onPress: () => requestExactAlarmPermission(),
-  //         },
-  //         { text: 'Cancel', style: 'cancel' },
-  //       ]
-  //     );
-  //     return;
-  //   }
-
-  //   console.log('✅ SCHEDULE_EXACT_ALARM permission granted');
-  // }
+  
 }
 
 export async function createNotificationChannel() {
@@ -77,46 +56,25 @@ export async function cancelAllHydrationReminders() {
   console.log('🚫 All hydration reminders canceled');
 }
 
-const getLocalDateString = (timestamp: number) => {
-  return new Date(timestamp).toLocaleDateString('en-CA'); // YYYY-MM-DD
-};
 
-// Cancel only today’s notifications
-async function cancelTodaysNotifications() {
-  const notifications = await notifee.getTriggerNotifications();
-  const todayStr = getLocalDateString(Date.now());
-
-  for (const notif of notifications) {
-    const trigger = notif.notification?.trigger as any;
-    if (trigger?.type === 'timestamp' && trigger.timestamp) {
-      if (getLocalDateString(trigger.timestamp) === todayStr) {
-        await notifee.cancelNotification(notif.id);
-        console.log(`🚫 Canceled today’s notification: ${notif.id}`);
-        
-      }
-    }
-  }
-}
 
 export async function scheduleRemindersIfGoalNotReached() {
-  const totalIntake = await getTodayTotalIntake();
-  const goalStr = await AsyncStorage.getItem('hydrationGoal');
-  const goal = goalStr ? parseInt(goalStr) : 0;
-
-  if (totalIntake >= goal) {
-    console.log('💧 Daily goal reached, canceling reminders');
-    await cancelTodaysNotifications();
-    return;
-  }
-
-  // Goal not reached → schedule reminders
   const reminders = await getReminders();
   await scheduleReminderNotifications(reminders);
 }
 
+const getLocalDateString = (timestamp: number) => {
+  return new Date(timestamp).toLocaleDateString('en-CA'); // YYYY-MM-DD
+};
+
 export async function scheduleReminderNotifications(reminders: Reminder[]) {
-  await cancelAllHydrationReminders(); 
+  await cancelAllHydrationReminders();
   scheduledNotificationIds = [];
+
+  const todayStr = getLocalDateString(Date.now());
+  const totalIntake = await getTodayTotalIntake();
+  const goalStr = await AsyncStorage.getItem('hydrationGoal');
+  const goal = goalStr ? parseInt(goalStr) : 0;
 
   for (const reminder of reminders) {
     if (!reminder.enabled) continue;
@@ -130,10 +88,16 @@ export async function scheduleReminderNotifications(reminders: Reminder[]) {
     const triggerDate = new Date();
     triggerDate.setHours(hour, minute, second, 0);
 
-    // If already passed today, schedule for tomorrow
     if (triggerDate <= now) {
       triggerDate.setDate(triggerDate.getDate() + 1);
     }
+
+    const notifId = `${reminder.id}_${getLocalDateString(triggerDate.getTime())}`;
+
+    const bodyText =
+      getLocalDateString(triggerDate.getTime()) === todayStr && totalIntake >= goal
+        ? "🎉 Congratulations! You've reached your goal today!"
+        : 'Drink a glass of water and stay fresh!';
 
     const trigger: TimestampTrigger = {
       type: TriggerType.TIMESTAMP,
@@ -144,24 +108,24 @@ export async function scheduleReminderNotifications(reminders: Reminder[]) {
 
     await notifee.createTriggerNotification(
       {
-        id: reminder.id,
-        title: '💧 Time to Hydrate!',
-        body: 'Drink a glass of water and stay fresh!',
+        id: notifId,
+        title: '💧 Hydration Reminder',
+        body: bodyText,
         android: {
           channelId: 'hydration-reminder-channel',
           smallIcon: 'ic_launcher',
-          sound: 'notification', 
+          sound: 'notification',
           pressAction: { id: 'default' },
         },
         ios: {
-      sound: 'notification.wav', 
-    },
+          sound: 'notification.wav',
+        },
       },
       trigger
     );
 
-    scheduledNotificationIds.push(reminder.id);
-    console.log(`✅ Scheduled reminder at ${reminder.time} → ${triggerDate.toLocaleString()}`);
+    scheduledNotificationIds.push(notifId);
+    console.log(`✅ Scheduled reminder at ${reminder.time} → ${triggerDate.toLocaleString()} (ID: ${notifId})`);
   }
 
   console.log(`📌 Total reminders scheduled: ${scheduledNotificationIds.length}`);

@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { checkAndHandleHydrationGoal } from './checkAndHandleHydrationGoal';
+import { scheduleRemindersIfGoalNotReached } from './notificationUtils';
 
 export interface WaterLog {
   id: string;
@@ -38,7 +38,7 @@ export const logWaterIntake = async (amount: number): Promise<WaterLog[]> => {
 
   const updatedLogs = [...logs, newLog];
   await saveLogs(updatedLogs);
-   await checkAndHandleHydrationGoal();
+  await scheduleRemindersIfGoalNotReached();
 
 
   return updatedLogs;
@@ -63,7 +63,7 @@ export const deleteWaterLog = async (id: string): Promise<WaterLog[]> => {
   const updated = logs.filter(log => log.id !== id);
   await saveLogs(updated);
 
-   await checkAndHandleHydrationGoal();
+   await scheduleRemindersIfGoalNotReached();
 
 
   return updated;
