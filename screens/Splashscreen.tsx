@@ -49,7 +49,7 @@ const SplashScreen = () => {
         style={styles.logo} 
         resizeMode="contain" 
       />
-      <Text style={[styles.title, { fontSize, marginTop }]}>Dora Drink</Text>
+      <Text style={[styles.title, { fontSize, marginTop }]}>DoraDrink</Text>
     </View>
   );
 };

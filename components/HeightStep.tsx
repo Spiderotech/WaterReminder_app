@@ -36,7 +36,7 @@ const HeightStep = ({ selectedData = {}, onDataChange }) => {
 
   return (
     <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
-      <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>How tall are you?</Text>
+      <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>How Tall Are You?</Text>
       <Text style={[styles.subtitle, { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom, color: dark ? '#aaa' : '#555' }]}>
         Your height is another key factor in customizing your hydration plan.
       </Text>

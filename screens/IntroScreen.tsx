@@ -45,22 +45,22 @@ const IntroScreen = ({ navigation }: any) => {
 
   const isSmallDevice = width < 350 || height < 650;
 
-// Responsive sizes (update for small devices)
-const titleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.06);
-const descFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
-const imageSize = isSmallDevice ? 80 : Math.max(120, Math.min(width * 0.55, height * 0.3));
-const navCircleSize = isSmallDevice ? 32 : Math.max(44, width * 0.13);
-const startButtonPaddingV = isSmallDevice ? 7 : Math.max(10, height * 0.015);
-const startButtonPaddingH = isSmallDevice ? 14 : Math.max(24, width * 0.08);
-const dotSize = isSmallDevice ? 7 : width * 0.022;
-const dotActiveSize = isSmallDevice ? 11 : width * 0.033;
-const dotRadius = isSmallDevice ? 3.5 : width * 0.011;
-const dotMargin = isSmallDevice ? 2 : 5;
-const slidePadding = isSmallDevice ? 8 : width * 0.06;
-const slideMarginB = isSmallDevice ? 10 : height * 0.05;
-const navMarginH = isSmallDevice ? 12 : width * 0.08;
-const navMarginB = isSmallDevice ? 12 : height * 0.05;
-const dotsMarginB = isSmallDevice ? 8 : height * 0.025;
+  // Responsive sizes (update for small devices)
+  const titleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.06);
+  const descFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
+  const imageSize = isSmallDevice ? 80 : Math.max(120, Math.min(width * 0.55, height * 0.3));
+  const navCircleSize = isSmallDevice ? 32 : Math.max(44, width * 0.13);
+  const startButtonPaddingV = isSmallDevice ? 7 : Math.max(10, height * 0.015);
+  const startButtonPaddingH = isSmallDevice ? 14 : Math.max(24, width * 0.08);
+  const dotSize = isSmallDevice ? 7 : width * 0.022;
+  const dotActiveSize = isSmallDevice ? 11 : width * 0.033;
+  const dotRadius = isSmallDevice ? 3.5 : width * 0.011;
+  const dotMargin = isSmallDevice ? 2 : 5;
+  const slidePadding = isSmallDevice ? 8 : width * 0.06;
+  const slideMarginB = isSmallDevice ? 10 : height * 0.05;
+  const navMarginH = isSmallDevice ? 12 : width * 0.08;
+  const navMarginB = isSmallDevice ? 12 : height * 0.05;
+  const dotsMarginB = isSmallDevice ? 8 : height * 0.025;
 
   const onNext = () => {
     if (currentIndex < slides.length - 1) {
@@ -86,83 +86,96 @@ const dotsMarginB = isSmallDevice ? 8 : height * 0.025;
 
   return (
     <View style={[styles.container, { backgroundColor }]}>
-    <StatusBar
-      backgroundColor={backgroundColor}
-      barStyle={barStyle}
-      translucent={false}
-    />
+      <StatusBar
+        backgroundColor={backgroundColor}
+        barStyle={barStyle}
+        translucent={false}
+      />
 
-    <FlatList
-      ref={flatListRef}
-      data={slides}
-      keyExtractor={item => item.id}
-      horizontal
-      pagingEnabled
-      showsHorizontalScrollIndicator={false}
-      onViewableItemsChanged={onViewableItemsChanged}
-      renderItem={({ item }) => (
-        <View style={[styles.slide, { width, padding: slidePadding }]}>
-          {item.image && (
-            <Image
-              source={item.image}
-              style={[
-                styles.image,
-                { width: imageSize, height: imageSize, marginBottom: slideMarginB },
-              ]}
-            />
-          )}
-          <Text style={[styles.title, { fontSize: titleFontSize, marginBottom: isSmallDevice ? 6 : height * 0.015 }]}>{item.title}</Text>
-          {item.description ? (
-            <Text style={[styles.desc, { fontSize: descFontSize, lineHeight: descFontSize * 1.4 }]}>{item.description}</Text>
-          ) : null}
-        </View>
-      )}
-    />
+      <FlatList
+        ref={flatListRef}
+        data={slides}
+        keyExtractor={item => item.id}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onViewableItemsChanged={onViewableItemsChanged}
+        renderItem={({ item }) => (
+          <View style={[styles.slide, { width, padding: slidePadding }]}>
+            {item.image && (
+              <Image
+                source={item.image}
+                style={[
+                  styles.image,
+                  { width: imageSize, height: imageSize, marginBottom: slideMarginB },
+                ]}
+              />
+            )}
+            <Text style={[styles.title, { fontSize: titleFontSize, marginBottom: isSmallDevice ? 6 : height * 0.015 }]}>{item.title}</Text>
+            {item.description ? (
+              <Text style={[styles.desc, { fontSize: descFontSize, lineHeight: descFontSize * 1.4 }]}>{item.description}</Text>
+            ) : null}
+          </View>
+        )}
+      />
 
-    {/* Pagination Dots */}
-    <View style={[styles.dotsContainer, { marginBottom: dotsMarginB }]}>
-      {slides.map((_, index) => (
-        <View
-          key={index}
-          style={[
-            styles.dot,
-            {
-              width: currentIndex === index ? dotActiveSize : dotSize,
-              height: dotSize,
-              borderRadius: dotRadius,
-              marginHorizontal: dotMargin,
-              backgroundColor: currentIndex === index ? '#fff' : '#ccc',
-            },
-          ]}
-        />
-      ))}
-    </View>
+      {/* Pagination Dots */}
+      <View style={[styles.dotsContainer, { marginBottom: dotsMarginB }]}>
+        {slides.map((_, index) => (
+          <View
+            key={index}
+            style={[
+              styles.dot,
+              {
+                width: currentIndex === index ? dotActiveSize : dotSize,
+                height: dotSize,
+                borderRadius: dotRadius,
+                marginHorizontal: dotMargin,
+                backgroundColor: currentIndex === index ? '#fff' : '#ccc',
+              },
+            ]}
+          />
+        ))}
+      </View>
 
-    {/* Navigation Controls */}
-    <View style={[styles.navContainer, { marginHorizontal: navMarginH, marginBottom: navMarginB }]}>
-      {currentIndex < slides.length - 1 ? (
-        <>
-          {currentIndex > 0 ? (
-            <TouchableOpacity onPress={onPrev} style={[styles.navCircle, { width: navCircleSize, height: navCircleSize, borderRadius: navCircleSize / 2 }]}>
-              <Feather name="arrow-left" size={navCircleSize * 0.43} color="#fff" />
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity onPress={onSkip}>
-              <Text style={[styles.navText, { fontSize: descFontSize }]}>Skip</Text>
-            </TouchableOpacity>
-          )}
+      {/* Navigation Controls */}
+      {/* Navigation Controls */}
+      <View style={[styles.navContainer, { marginHorizontal: navMarginH, marginBottom: navMarginB }]}>
+        {currentIndex > 0 ? (
+          <TouchableOpacity
+            onPress={onPrev}
+            style={[
+              styles.navCircle,
+              { width: navCircleSize, height: navCircleSize, borderRadius: navCircleSize / 2 },
+            ]}
+          >
+            <Feather name="arrow-left" size={navCircleSize * 0.43} color="#fff" />
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity onPress={onSkip}>
+            <Text style={[styles.navText, { fontSize: descFontSize }]}>Skip</Text>
+          </TouchableOpacity>
+        )}
 
-          <TouchableOpacity onPress={onNext} style={[styles.navCircle, { width: navCircleSize, height: navCircleSize, borderRadius: navCircleSize / 2 }]}>
+        {/* Right side control (arrow or Get Started) */}
+        {currentIndex < slides.length - 1 ? (
+          <TouchableOpacity
+            onPress={onNext}
+            style={[
+              styles.navCircle,
+              { width: navCircleSize, height: navCircleSize, borderRadius: navCircleSize / 2 },
+            ]}
+          >
             <Feather name="arrow-right" size={navCircleSize * 0.43} color="#fff" />
           </TouchableOpacity>
-        </>
-      ) : (
-        <TouchableOpacity onPress={onNext} style={[styles.startButton, { paddingVertical: startButtonPaddingV, paddingHorizontal: startButtonPaddingH, borderRadius: startButtonPaddingH }]}>
-          <Text style={[styles.startText, { fontSize: descFontSize }]} >Get Started</Text>
-        </TouchableOpacity>
-      )}
+        ) : (
+          <TouchableOpacity onPress={onNext} style={[styles.startButton, { paddingVertical: startButtonPaddingV, paddingHorizontal: startButtonPaddingH, borderRadius: startButtonPaddingH }]}>
+            <Text style={[styles.startText, { fontSize: descFontSize }]} >Get Started</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
     </View>
-  </View>
   );
 };
 

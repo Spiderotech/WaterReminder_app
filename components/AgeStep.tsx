@@ -31,7 +31,7 @@ const AgeStep = ({ onDataChange, selectedData = {} }) => {
   return (
     <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
       <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>
-        What's your age?
+        What’s Your Age?
       </Text>
       <Text
         style={[

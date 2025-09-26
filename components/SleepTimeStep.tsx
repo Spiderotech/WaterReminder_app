@@ -78,7 +78,7 @@ const SleepTimeStep = ({ onDataChange, selectedData = {} }) => {
   return (
     <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
       <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>
-        When do you usually go to sleep?
+       When Do You Usually Go To Sleep?
       </Text>
       <Text
         style={[

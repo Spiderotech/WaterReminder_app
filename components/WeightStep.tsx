@@ -35,7 +35,7 @@ const WeightStep = ({ selectedData = {}, onDataChange }) => {
 
   return (
     <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
-      <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>How much do you weigh?</Text>
+      <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>How Much Do You Weigh?</Text>
       <Text style={[styles.subtitle, { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom, color: dark ? '#aaa' : '#555' }]}>
         Your weight plays a crucial role in determining your hydration needs.
       </Text>

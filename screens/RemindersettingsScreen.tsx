@@ -348,7 +348,6 @@ const handleOpenExactAlarmSettings = async () => {
           mode="time"
           value={time}
           onChange={onChangeTime}
-          is24Hour={true}
           display="default"
         />
       )}

@@ -89,7 +89,7 @@ const WakeUpTimeStep = ({ onDataChange, selectedData = {} }) => {
   return (
     <View style={[styles.container, { padding, backgroundColor: dark ? '#000' : '#fff' }]}>
       <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>
-        When do you usually wake up?
+       When Do You Usually Wake Up?
       </Text>
       <Text
         style={[

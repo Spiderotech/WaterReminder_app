@@ -29,7 +29,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
 
   // Responsive values
   const isSmallDevice = width < 350 || height < 650;
-  const padding = isSmallDevice ? 16 : Math.max(20, width * 0.06);
+  const padding = isSmallDevice ? 16 : Math.max(20, width * 0.09);
   const titleFontSize = isSmallDevice ? 18 : Math.max(22, width * 0.06);
   const goalOptionPadding = isSmallDevice ? 12 : Math.max(16, width * 0.04);
   const goalOptionRadius = isSmallDevice ? 10 : Math.max(12, width * 0.035);
@@ -40,7 +40,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
   const confirmBtnRadius = isSmallDevice ? 20 : Math.max(30, width * 0.09);
   const confirmTextFontSize = isSmallDevice ? 15 : Math.max(16, width * 0.05);
   const iconSize = isSmallDevice ? 32 : Math.max(38, width * 0.1);
-  const subTextFontSize1 = isSmallDevice ? 13 : Math.max(14, width * 0.03);
+  const subTextFontSize1 = isSmallDevice ? 13 : Math.max(12, width * 0.03);
 
   useEffect(() => {
     AsyncStorage.getItem('hydrationUnit').then((u) => {
@@ -90,7 +90,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
       <Text
         style={[styles.title, { color: dark ? '#fff' : '#000', fontSize: titleFontSize }]}
       >
-        Choose your daily hydration goal
+        Choose Your Daily Hydration Goal
       </Text>
 
       {/* Minimum option */}
@@ -113,7 +113,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <MaterialCommunityIcons
-            name="cup-water"
+            name="glass-cocktail"
             size={iconSize}
             color={selectedGoal === min ? '#007AFF' : (dark ? '#fff' : '#000')}
             style={styles.icon}
@@ -148,7 +148,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
             },
           ]}
         >
-          5 reminders to help you achieve it
+          5 Reminders to help you achieve it
         </Text>
       </TouchableOpacity>
 
@@ -172,7 +172,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
       >
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <MaterialCommunityIcons
-            name="cup-water"
+            name="cup"
             size={iconSize}
             color={selectedGoal === max ? '#007AFF' : (dark ? '#fff' : '#000')}
             style={styles.icon}
@@ -207,7 +207,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
             },
           ]}
         >
-          8 reminders to help you achieve it
+          8 Reminders to help you achieve it
         </Text>
       </TouchableOpacity>
 
@@ -220,7 +220,7 @@ const HydrationGoalScreen = ({ navigation, route }) => {
           { color: dark ? '#fff' : '#000', fontSize: subTextFontSize },
         ]}
       >
-        Or set your custom goal
+        Or Set Your Custom Goal
       </Text>
 
       {/* Custom goal option */}
@@ -231,59 +231,83 @@ const HydrationGoalScreen = ({ navigation, route }) => {
             padding: goalOptionPadding,
             borderRadius: goalOptionRadius,
             borderColor: selectedGoal === parseInt(customGoal) ? '#007AFF' : (dark ? '#333' : '#ccc'),
-            backgroundColor: selectedGoal === parseInt(customGoal) ? (dark ? '#007AFF15' : '#e6f0ff') : 'transparent',
+            backgroundColor:
+              selectedGoal === parseInt(customGoal)
+                ? dark
+                  ? '#007AFF15'
+                  : '#e6f0ff'
+                : 'transparent',
             flexDirection: 'column',
             alignItems: 'flex-start',
           },
         ]}
       >
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center'  }}>
           <MaterialCommunityIcons
-            name="cup-water"
+            name="cup-outline"
             size={iconSize}
-            color={selectedGoal === parseInt(customGoal) ? '#007AFF' : (dark ? '#fff' : '#000')}
+            color={
+              selectedGoal === parseInt(customGoal)
+                ? '#007AFF'
+                : dark
+                  ? '#fff'
+                  : '#000'
+            }
             style={styles.icon}
           />
           <View style={styles.textContainer}>
-            <TextInput
-              style={[
-                styles.goalText,
-                {
-                  fontSize: goalTextFontSize,
-                  color: dark ? '#fff' : '#000',
-                  borderBottomWidth: 1,
-                  borderBottomColor: dark ? '#666' : '#ccc',
-                  minWidth: 80,
-                },
-              ]}
-              keyboardType="numeric"
-              placeholder="Custom"
-              placeholderTextColor={dark ? '#888' : '#aaa'}
-              value={customGoal}
-              onChangeText={(val) => {
-                // Remove non-numeric
-                const cleaned = val.replace(/[^0-9]/g, '');
-                setCustomGoal(val); // keep original input for user
-                const num = parseInt(cleaned);
+            {/* Input + mL on same line */}
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <TextInput
+                style={[
+                  styles.goalText,
+                  {
+                    fontSize: goalTextFontSize,
+                    color: dark ? '#fff' : '#000',
+                    borderBottomWidth: 1,
+                    borderBottomColor: dark ? '#666' : '#ccc',
+                    minWidth: 80,
+                    paddingRight: 5,
+                  },
+                ]}
+                keyboardType="numeric"
+                placeholder="Custom"
+                placeholderTextColor={dark ? '#888' : '#aaa'}
+                value={customGoal}
+                maxLength={4}
+                onChangeText={(val) => {
+                  const cleaned = val.replace(/[^0-9]/g, '');
+                  setCustomGoal(val);
+                  const num = parseInt(cleaned);
 
-                if (val && cleaned !== val) {
-                  setError('Please enter numbers only');
-                  setSelectedGoal(null);
-                } else if (!isNaN(num)) {
-                  if (num < 500 || num > 1500) {
-                    setError('Enter a value between 500 and 1500');
+                  if (val && cleaned !== val) {
+                    setError('Please enter numbers only');
                     setSelectedGoal(null);
+                  } else if (!isNaN(num)) {
+                    if (num < 500 || num > 1500) {
+                      setError('Enter a value between 500 and 1500');
+                      setSelectedGoal(null);
+                    } else {
+                      setError('');
+                      setSelectedGoal(num);
+                    }
                   } else {
                     setError('');
-                    setSelectedGoal(num);
+                    setSelectedGoal(null);
                   }
-                } else {
-                  setError('');
-                  setSelectedGoal(null);
-                }
-              }}
+                }}
+              />
+              <Text
+               style={[
+                styles.goalText,
+                { fontSize: goalTextFontSize, color: dark ? '#fff' : '#000' },
+              ]}
+              >
+                {unit}
+              </Text>
+            </View>
 
-            />
+            {/* Label under input */}
             <Text
               style={[
                 styles.subText,
@@ -315,11 +339,11 @@ const HydrationGoalScreen = ({ navigation, route }) => {
               },
             ]}
           >
-            {selectedGoal > 1000 ? '5 reminders' : '3 reminders'} will be created
+            {selectedGoal > 1000 ? '5 Reminders' : '3 Reminders'} to help you achieve it
           </Text>
         ) : null}
-
       </View>
+
 
 
       {/* Confirm button */}
@@ -354,10 +378,10 @@ const styles = StyleSheet.create({
     width: '80%',
     marginBottom: 20,
   },
-  textContainer: { alignItems: 'center', flex: 1 },
+  textContainer: { justifyContent: 'flex-start', flex: 1 },
+  icon: { marginRight: 20 },
   goalText: { fontWeight: 'bold' },
   subText: { fontWeight: '500' },
-  icon: { marginRight: 15 },
   confirmBtn: {
     marginTop: 30,
     shadowColor: '#007AFF',
@@ -374,8 +398,8 @@ const styles = StyleSheet.create({
     width: '100%',         // 👈 makes sure it spans the screen
   },
   errorText: {
-  fontWeight: '500',
-},
+    fontWeight: '500',
+  },
 
 });
 

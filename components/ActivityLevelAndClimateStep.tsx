@@ -63,7 +63,7 @@ const ActivityLevelAndClimateStep = ({ onDataChange, selectedData = {} }) => {
   return (
     <ScrollView style={[styles.container, { padding, backgroundColor: bgColor }]}>
       <Text style={[styles.title, { fontSize: titleFontSize, color: textColor }]}>
-        What's your activity level?
+       What’s Your Activity Level?
       </Text>
       <Text style={[styles.subtitle, { fontSize: subtitleFontSize, color: subtitleColor }]}>
         Understanding your activity is vital for crafting a personalized hydration plan.
@@ -87,7 +87,7 @@ const ActivityLevelAndClimateStep = ({ onDataChange, selectedData = {} }) => {
       ))}
 
       <Text style={[styles.title, { fontSize: titleFontSize, marginTop: climateTitleMarginTop, color: textColor }]}>
-        What's the climate/weather like in your area?
+        What’s The Climate/Weather Like In Your Area?
       </Text>
       <Text style={[styles.subtitle, { fontSize: subtitleFontSize, color: subtitleColor }]}>
         External factors like weather can influence your hydration needs.

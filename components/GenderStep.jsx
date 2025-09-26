@@ -37,7 +37,7 @@ const GenderStep = ({ userData, onDataChange }) => {
   return (
     <View style={[styles.container, { paddingHorizontal, paddingTop, backgroundColor: dark ? '#000' : '#fff' }]}>
       <Text style={[styles.title, { fontSize: titleFontSize, color: dark ? '#fff' : '#000' }]}>
-        What’s your gender?
+        What’s Your Gender?
       </Text>
       <Text
         style={[
@@ -45,7 +45,7 @@ const GenderStep = ({ userData, onDataChange }) => {
           { fontSize: subtitleFontSize, marginBottom: subtitleMarginBottom, color: dark ? '#aaa' : '#666' },
         ]}
       >
-        Dora Drink is here to tailor a hydration plan just for you! Let’s kick things off by getting to know you better.
+        DoraDrink is here to tailor a hydration plan just for you! Let’s kick things off by getting to know you better.
       </Text>
 
       <View style={[styles.optionsRow, { gap: optionsGap, marginBottom: optionsMarginBottom }]}>
