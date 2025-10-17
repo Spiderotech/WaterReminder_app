@@ -1,4 +1,4 @@
-package com.waterreminderapp
+package com.doradrinkwaterreminderapp
 
 import android.app.Application
 import com.facebook.react.PackageList

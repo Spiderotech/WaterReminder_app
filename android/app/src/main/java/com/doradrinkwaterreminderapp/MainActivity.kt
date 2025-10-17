@@ -1,4 +1,4 @@
-package com.waterreminderapp
+package com.doradrinkwaterreminderapp
 
 import com.facebook.react.ReactActivity
 import com.facebook.react.ReactActivityDelegate
