@@ -20,10 +20,11 @@ import TermsOfServiceScreen from './screens/TermsOfServiceScreen';
 import { ThemeProvider, useThemeContext } from './ThemeContext';
 import GeneratingPlanScreen from './screens/GeneratingPlanScreen';
 import HydrationGoalScreen from './screens/HydrationGoalScreen';
-import { createNotificationChannel, requestNotificationPermission, scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from './utils/notificationUtils';
+import { checkNotificationEnabled, createNotificationChannel, requestNotificationPermission, scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from './utils/notificationUtils';
 import { getReminders } from './utils/reminderUtils';
 import ExactAlarmPermissionModal from './components/ExactAlarmPermissionModal';
 import { needsExactAlarmPermission } from './utils/exactAlarmPermission';
+
 
 
 
@@ -32,24 +33,28 @@ const Stack = createNativeStackNavigator();
 const MainApp = () => {
   const { theme } = useThemeContext();
   const [showExactAlarmModal, setShowExactAlarmModal] = useState(false);
+  const [showBatteryModal, setShowBatteryModal] = useState(false);
 
-   const checkExactAlarm = async () => {
+  const checkExactAlarm = async () => {
     const needPermission = await needsExactAlarmPermission();
     setShowExactAlarmModal(needPermission);
   };
 
 
-  useEffect(() => {
-    const initNotifications = async () => {
-      await requestNotificationPermission();
-      await createNotificationChannel();
+ useEffect(() => {
+  const initNotifications = async () => {
+    await requestNotificationPermission();
+    await checkNotificationEnabled();
+    await createNotificationChannel();
 
-      await checkExactAlarm();
+    // ✅ Check and show exact alarm modal if needed
+    await checkExactAlarm();
 
-      await scheduleRemindersIfGoalNotReached();
-    };
-    initNotifications();
-  }, []);
+    await scheduleRemindersIfGoalNotReached();
+  };
+  initNotifications();
+}, []);
+
 
 
   useEffect(() => {
@@ -89,7 +94,7 @@ const MainApp = () => {
           <Stack.Screen name="Privacy" component={PrivacyPolicyScreen} />
         </Stack.Navigator>
       </NavigationContainer>
-       <ExactAlarmPermissionModal
+      <ExactAlarmPermissionModal
         visible={showExactAlarmModal}
         onClose={() => setShowExactAlarmModal(false)}
       />

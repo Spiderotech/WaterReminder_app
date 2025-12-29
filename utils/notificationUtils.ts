@@ -39,7 +39,24 @@ export async function requestNotificationPermission() {
 
   console.log('✅ Notification permission granted');
 
-  
+
+}
+
+export async function checkNotificationEnabled() {
+  if (Platform.OS === 'android' && Platform.Version < 33) {
+    const settings = await notifee.getNotificationSettings();
+
+    if (settings.authorizationStatus === AuthorizationStatus.DENIED) {
+      Alert.alert(
+        'Enable Notifications',
+        'Notifications are turned off for this app. Please enable them in settings for reminders to work properly.',
+        [
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+          { text: 'Cancel' }
+        ]
+      );
+    }
+  }
 }
 
 export async function createNotificationChannel() {
