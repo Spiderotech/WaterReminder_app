@@ -64,8 +64,8 @@ const inputRadius = Math.max(8, width * 0.025);
 const modalCloseMarginT = Math.max(20, height * 0.03);
 const circularProgressSize = isSmallDevice ? 140 : Math.max(180, width * 0.6);
 const circularProgressWidth = isSmallDevice ? 12 : Math.max(18, width * 0.08);
-const logoSize = isSmallDevice ? 22 : Math.max(28, width * 0.08);
-const headerTitleFontSize = isSmallDevice ? 16 : Math.max(18, width * 0.05);
+const logoSize = isSmallDevice ? 22 : Math.max(28, width * 0.09);
+const headerTitleFontSize = isSmallDevice ? 16 : Math.max(18, width * 0.055);
 
 const WaterDrop = ({ fillPercent }: { fillPercent: number }) => {
   const clipHeight = 100 - fillPercent;
@@ -284,7 +284,7 @@ const HomeScreen = () => {
         />
         <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>Home</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-          <Feather name="settings" size={24} color={dark ? '#fff' : '#000'} />
+          <Feather name="settings" size={25} color={dark ? '#fff' : '#000'} />
         </TouchableOpacity>
       </View>
       <ScrollView
@@ -355,7 +355,7 @@ const HomeScreen = () => {
 
           {history.length === 0 ? (
             <View style={styles.noHistory}>
-              <Feather name="clipboard" size={40} color={dark ? '#555' : '#ccc'} />
+              <Feather name="clipboard" size={45} color={dark ? '#555' : '#ccc'} />
               <Text style={[styles.noHistoryText, { color: dark ? '#888' : '#999' }]}>
                 No water intake today.
               </Text>

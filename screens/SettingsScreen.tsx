@@ -77,16 +77,26 @@ const SettingsScreen = ({ navigation }) => {
     }
   };
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        message:
-          'Stay hydrated with DoraDrink! 💧 Download now and keep your body refreshed.',
-      });
-    } catch (error) {
-      console.error('Error sharing:', error);
-    }
-  };
+  const APP_LINKS = {
+  ios: 'https://apps.apple.com/app/id6752671109',
+  android: 'https://play.google.com/store/apps/details?id=com.doradrinkwaterreminderapp',
+};
+
+const handleShare = async () => {
+  try {
+    const storeLink =
+      Platform.OS === 'ios' ? APP_LINKS.ios : APP_LINKS.android;
+
+    await Share.share({
+      message: `Stay hydrated with DoraDrink! 💧\n\nDownload now:\n${storeLink}`,
+      url: storeLink, // iOS prefers url
+      title: 'DoraDrink – Stay Hydrated',
+    });
+  } catch (error) {
+    console.error('Error sharing:', error);
+  }
+};
+
 
   return (
     <SafeAreaView
