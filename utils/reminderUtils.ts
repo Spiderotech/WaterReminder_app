@@ -52,6 +52,8 @@ export const generateReminders = (
 ): Reminder[] => {
   const reminders: Reminder[] = [];
   const now = new Date();
+  const slotIds = ['morning', 'afternoon', 'evening'];
+  const count = Math.min(Math.max(reminderCount, 0), slotIds.length);
 
   const [wakeHour, wakeMinute] = wakeTime.split(':').map(Number);
   const [sleepHour, sleepMinute] = sleepTime.split(':').map(Number);
@@ -77,15 +79,15 @@ export const generateReminders = (
   }
 
   const totalMs = end.getTime() - start.getTime();
-  if (reminderCount <= 0) return [];
+  if (count <= 0) return [];
 
-  const intervalMs = totalMs / reminderCount;
+  const intervalMs = count === 1 ? 0 : totalMs / (count - 1);
 
-  for (let i = 0; i < reminderCount; i++) {
+  for (let i = 0; i < count; i++) {
     const time = new Date(start.getTime() + i * intervalMs);
 
     reminders.push({
-      id: `${time.getHours()}${time.getMinutes()}${time.getSeconds()}`,
+      id: slotIds[i],
       time: time.toTimeString().split(' ')[0], // HH:mm:ss
       enabled: true,
     });
@@ -93,6 +95,5 @@ export const generateReminders = (
 
   return reminders;
 };
-
 
 

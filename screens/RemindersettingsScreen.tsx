@@ -1,21 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  Switch,
-  TouchableOpacity,
-  FlatList,
-  StyleSheet,
-  Platform,
-  Alert,
-  Modal,
   Dimensions,
+  Image,
+  Modal,
+  Platform,
   ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import notifee from '@notifee/react-native';
+import { getPermission as requestExactAlarmPermission } from 'react-native-schedule-exact-alarm-permission';
 import Feather from 'react-native-vector-icons/Feather';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useThemeContext } from '../ThemeContext';
+import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
+import { SafeAreaView } from '../components/AppSafeAreaView';
+import LinearGradient from 'react-native-linear-gradient';
+import { useMainTabTheme } from '../constants/mainTabTheme';
+
 import {
   getReminders,
   addReminder as addReminderUtil,
@@ -23,147 +27,171 @@ import {
   updateReminder as updateReminderUtil,
   Reminder,
 } from '../utils/reminderUtils';
-import { scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
-import notifee from '@notifee/react-native';
+import { scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
 import { needsExactAlarmPermission } from '../utils/exactAlarmPermission';
+
 const { width, height } = Dimensions.get('window');
-import { getPermission as requestExactAlarmPermission } from 'react-native-schedule-exact-alarm-permission';
-
-
 const isSmallDevice = width < 350 || height < 650;
+const BLUE = '#16b8ff';
+const GOLD = '#ffd24b';
+const PURPLE = '#b96cff';
+const GREEN = '#50e574';
+const PANEL = 'rgba(7, 24, 62, 0.72)';
+const PANEL_SOFT = 'rgba(12, 34, 78, 0.58)';
+const BORDER = 'rgba(75, 112, 183, 0.44)';
+const MUTED = '#c8d2ee';
+const SWITCH_TRACK = { false: 'rgba(82, 103, 159, 0.48)', true: '#42d96b' };
+const SWITCH_IOS_BG = 'rgba(82, 103, 159, 0.48)';
+const SCREEN_PADDING = isSmallDevice ? 19 : 25;
+const reminderActionWidth = Math.min(112, Math.max(96, width * 0.25));
 
-// Responsive values (update for small devices)
-const paddingHorizontal = isSmallDevice ? 8 : Math.max(16, width * 0.05);
-const headerTitleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.055);
-const fabSize = isSmallDevice ? 28 : Math.max(32, width * 0.09);
-const fabRadius = fabSize / 2;
-const fabIconSize = isSmallDevice ? 16 : Math.max(20, width * 0.055);
-const reminderRowPaddingV = isSmallDevice ? 8 : Math.max(14, height * 0.018);
-const reminderRowPaddingH = isSmallDevice ? 8 : Math.max(12, width * 0.03);
-const reminderRowRadius = isSmallDevice ? 10 : Math.max(15, width * 0.045);
-const reminderRowMarginV = isSmallDevice ? 4 : Math.max(8, height * 0.012);
-const timeTextFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.05);
-const scheduledTextFontSize = isSmallDevice ? 10 : Math.max(12, width * 0.035);
-const deleteIconMarginL = isSmallDevice ? 6 : Math.max(12, width * 0.03);
-const iosPickerRadius = isSmallDevice ? 12 : Math.max(20, width * 0.055);
-const doneBtnPaddingH = isSmallDevice ? 10 : Math.max(20, width * 0.06);
-const doneBtnPaddingV = isSmallDevice ? 6 : Math.max(10, height * 0.014);
-const doneTextFontSize = isSmallDevice ? 13 : Math.max(16, width * 0.045);
-const alertBoxRadius = isSmallDevice ? 8 : Math.max(12, width * 0.035);
-const alertBoxPadding = isSmallDevice ? 10 : Math.max(20, width * 0.055);
-const alertTitleFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.055);
-const alertMessageFontSize = isSmallDevice ? 11 : Math.max(15, width * 0.04);
-const alertButtonPaddingH = isSmallDevice ? 10 : Math.max(20, width * 0.06);
-const alertButtonPaddingV = isSmallDevice ? 6 : Math.max(10, height * 0.014);
-const alertButtonRadius = isSmallDevice ? 5 : Math.max(8, width * 0.025);
-const alertButtonMarginH = isSmallDevice ? 8 : Math.max(18, width * 0.045);
+const formatTime = (time: string): string => {
+  const [hourText = '0', minuteText = '0'] = time.split(':');
+  const hour = Number(hourText);
+  const period = hour >= 12 ? 'PM' : 'AM';
+  const hour12 = hour % 12 || 12;
 
-const ReminderSettingsScreen = ({ navigation }) => {
-  const { theme } = useThemeContext();
-  const dark = theme === 'dark';
+  return `${String(hour12).padStart(2, '0')}:${minuteText.padStart(2, '0')} ${period}`;
+};
 
+const toPickerDate = (time: string) => {
+  const [hourText = '8', minuteText = '0'] = time.split(':');
+  const date = new Date();
+  date.setHours(Number(hourText), Number(minuteText), 0, 0);
+  return date;
+};
+
+const toReminderTime = (date: Date) => (
+  date.toTimeString().split(':').slice(0, 2).join(':')
+);
+
+const getLastUpdatedText = () => {
+  const now = new Date();
+  return `Today, ${formatTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`)}`;
+};
+
+const getReminderMeta = (index: number) => {
+  if (index === 0) {
+    return {
+      title: 'Morning Reminder',
+      quote: 'Start your day fresh and hydrated',
+      accent: GOLD,
+      image: require('../assets/morning.png'),
+      icon: 'sun',
+    };
+  }
+
+  if (index === 1) {
+    return {
+      title: 'Afternoon Reminder',
+      quote: 'Keep your energy flowing',
+      accent: BLUE,
+      image: require('../assets/afternoon.png'),
+      icon: 'clock',
+    };
+  }
+
+  return {
+    title: index === 2 ? 'Evening Reminder' : 'Custom Reminder',
+    quote: index === 2 ? 'Finish strong today' : 'Stay steady and hydrated',
+    accent: PURPLE,
+    image: require('../assets/evening.png'),
+    icon: 'clock',
+  };
+};
+
+const ReminderSettingsScreen = ({ navigation }: any) => {
+  const tabTheme = useMainTabTheme();
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [showPicker, setShowPicker] = useState(false);
   const [iosPickerVisible, setIosPickerVisible] = useState(false);
   const [time, setTime] = useState(new Date());
+  const [selectedReminderId, setSelectedReminderId] = useState<string | null>(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedIdToDelete, setSelectedIdToDelete] = useState<string | null>(null);
   const [showTipsModal, setShowTipsModal] = useState(false);
   const [showExactAlarmCard, setShowExactAlarmCard] = useState(false);
 
-
+  const lastUpdatedText = useMemo(getLastUpdatedText, [reminders]);
 
   useEffect(() => {
-  const init = async () => {
-    // 1️⃣ Load reminders
-    const data = await getReminders();
-    setReminders(data);
+    const init = async () => {
+      const data = await getReminders();
+      setReminders(data);
+      await scheduleRemindersIfGoalNotReached();
+
+      if (Platform.OS === 'android' && Platform.Version >= 31) {
+        const needsPermission = await needsExactAlarmPermission();
+        setShowExactAlarmCard(needsPermission);
+      }
+    };
+
+    init();
+  }, []);
+
+  const closePicker = useCallback(() => {
+    setShowPicker(false);
+    setIosPickerVisible(false);
+    setSelectedReminderId(null);
+  }, []);
+
+  const saveSelectedTime = useCallback(async (selectedDate: Date) => {
+    const formatted24 = toReminderTime(selectedDate);
+    const formattedWithSeconds = `${formatted24}:00`;
+    const updated = selectedReminderId
+      ? await updateReminderUtil(selectedReminderId, { time: formattedWithSeconds, enabled: true })
+      : await addReminderUtil(formatted24);
+
+    setReminders(updated);
     await scheduleRemindersIfGoalNotReached();
+  }, [selectedReminderId]);
 
-    // 2️⃣ Check exact alarm permission (Android 12+)
-    if (Platform.OS === 'android' && Platform.Version >= 31) {
-      const granted = await needsExactAlarmPermission(); // your existing util
-      setShowExactAlarmCard(granted); // true if permission NOT granted
-    }
+  const handleOpenExactAlarmSettings = async () => {
+    await requestExactAlarmPermission();
+    setShowExactAlarmCard(false);
   };
-
-  init();
-}, []);
-
-const handleOpenExactAlarmSettings = async () => {
-  // Open permission/settings
-  // You already have a function for this, call it here
-  await requestExactAlarmPermission();
-  setShowExactAlarmCard(false); // hide card after opening settings
-};
-
-
-
-  const getScheduledInfo = (time: string) => {
-    const [hourStr, minStr, secStr = '0'] = time.split(':');
-    const hour = parseInt(hourStr);
-    const min = parseInt(minStr);
-    const sec = parseInt(secStr);
-
-    const now = new Date();
-    const target = new Date();
-    target.setHours(hour, min, sec, 0);
-
-    if (target.getTime() <= now.getTime()) {
-      target.setDate(target.getDate() + 1); // move to next day if time passed
-    }
-
-    return `Scheduled : ${target.toLocaleString()}`;
-  };
-
 
   const goBack = () => navigation?.goBack();
 
-  const formatTime = (date: Date): string => {
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const period = hours >= 12 ? 'PM' : 'AM';
-    return `${String(hours % 12 || 12).padStart(2, '0')}:${String(minutes).padStart(2, '0')} ${period}`;
-  };
+  const openTimePicker = (reminder?: Reminder) => {
+    setSelectedReminderId(reminder?.id || null);
+    setTime(reminder ? toPickerDate(reminder.time) : new Date());
 
-  const onChangeTime = async (event: { type: any; }, selectedDate: Date) => {
-    const currentTime = selectedDate || time;
-
-    // For Android, this handles both 'set' and 'dismiss' events.
-    if (Platform.OS === 'android') {
-      setShowPicker(false);
-      // Only proceed with setting the reminder if the user confirmed ('set').
-      if (event?.type === 'set') {
-        const formatted24 = currentTime
-          .toTimeString()
-          .split(':')
-          .slice(0, 2)
-          .join(':');
-
-        const updated = await addReminderUtil(formatted24);
-        setReminders(updated);
-        await scheduleRemindersIfGoalNotReached(); 
-      }
+    if (Platform.OS === 'ios') {
+      setIosPickerVisible(true);
     } else {
-      // For iOS, the picker continuously updates the state, but we don't call
-      // addReminderUtil here. This is handled by the 'Done' button.
-      setTime(currentTime);
+      setShowPicker(true);
     }
   };
 
+  const onChangeTime = async (event: { type?: string }, selectedDate?: Date) => {
+    const currentTime = selectedDate || time;
+
+    if (Platform.OS === 'android') {
+      setShowPicker(false);
+      if (event?.type === 'set') {
+        await saveSelectedTime(currentTime);
+      }
+      setSelectedReminderId(null);
+      return;
+    }
+
+    setTime(currentTime);
+  };
+
   const toggleReminder = async (id: string) => {
-    const reminder = reminders.find((r) => r.id === id);
-    if (!reminder) return;
+    const reminder = reminders.find((item) => item.id === id);
+    if (!reminder) {
+      return;
+    }
 
     const updated = await updateReminderUtil(id, { enabled: !reminder.enabled });
     setReminders(updated);
 
     if (reminder.enabled) {
-      console.log(reminder.id);
-
-      await notifee.cancelNotification(reminder.id); // Cancel if turning off
+      await notifee.cancelNotification(reminder.id);
     } else {
-      await scheduleRemindersIfGoalNotReached(); // Re-schedule all if turning on
+      await scheduleRemindersIfGoalNotReached();
     }
   };
 
@@ -173,209 +201,184 @@ const handleOpenExactAlarmSettings = async () => {
   };
 
   const confirmDelete = async () => {
-    if (selectedIdToDelete) {
-      const updated = await deleteReminderUtil(selectedIdToDelete);
-      setReminders(updated);
-      await scheduleRemindersIfGoalNotReached();
-      setSelectedIdToDelete(null);
-      setShowDeleteModal(false);
+    if (!selectedIdToDelete) {
+      return;
     }
+
+    const updated = await deleteReminderUtil(selectedIdToDelete);
+    setReminders(updated);
+    await scheduleRemindersIfGoalNotReached();
+    setSelectedIdToDelete(null);
+    setShowDeleteModal(false);
   };
 
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: dark ? '#000' : '#fff' }]} edges={['top', 'left', 'right']}>
+    <LinearGradient colors={tabTheme.background} style={styles.container}>
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+
       <View style={styles.header}>
-        <TouchableOpacity onPress={goBack} style={styles.backIcon}>
-          <Feather name="arrow-left" size={22} color={dark ? '#fff' : '#000'} />
+        <TouchableOpacity onPress={goBack} style={[styles.headerCircle, { backgroundColor: tabTheme.headerButton, borderColor: tabTheme.border, shadowColor: tabTheme.shadow }]}>
+          <Feather name="chevron-left" size={25} color={tabTheme.icon} />
         </TouchableOpacity>
 
-        <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>
-          Reminder
-        </Text>
-
-        {/* Right Side Buttons */}
-        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-          {/* Tips Button */}
-          <TouchableOpacity
-            onPress={() => setShowTipsModal(true)}
-            style={[styles.infoIconButton, { marginRight: 10, backgroundColor: dark ? '#444' : '#555' }]}
-          >
-            <Feather name="info" size={12} color="#fff" />
-          </TouchableOpacity>
-
-          {/* Add Reminder Button */}
-          <TouchableOpacity
-            onPress={() => {
-              if (Platform.OS === 'ios') setIosPickerVisible(true);
-              else setShowPicker(true);
-            }}
-            style={styles.fabIcon}
-          >
-            <Feather name="plus" size={20} color="#fff" />
-          </TouchableOpacity>
+        <View style={styles.headerCopy}>
+          <Text style={[styles.headerTitle, { color: tabTheme.text }]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.72}>
+            Reminder Settings
+          </Text>
+          <Text style={[styles.headerSubtitle, { color: tabTheme.mutedText }]}>Stay consistent. Stay hydrated.</Text>
         </View>
+
+        <TouchableOpacity onPress={() => setShowTipsModal(true)} style={[styles.headerCircle, { backgroundColor: tabTheme.headerButton, borderColor: tabTheme.border, shadowColor: tabTheme.shadow }]}>
+          <Feather name="info" size={25} color={tabTheme.icon} />
+        </TouchableOpacity>
       </View>
 
-{showExactAlarmCard && (
-    <View
-      style={[
-        styles.exactAlarmCard,
-        { backgroundColor: dark ? '#111' : '#fff', borderColor: dark ? '#333' : '#eee' },
-      ]}
-    >
-      <Text style={[styles.exactAlarmTitle, { color: dark ? '#fff' : '#000' }]}>
-        Enable Exact Alarms
-      </Text>
-      <Text style={[styles.exactAlarmMessage, { color: dark ? '#aaa' : '#666' }]}>
-        To get accurate hydration reminders, please enable{" "}
-        <Text style={{ fontWeight: 'bold' }}>"Schedule exact alarms"</Text> in system settings.
-      </Text>
-      <TouchableOpacity style={styles.exactAlarmBtn} onPress={handleOpenExactAlarmSettings}>
-        <Text style={styles.exactAlarmBtnText}>Open Settings</Text>
-      </TouchableOpacity>
-    </View>
-  )}
-
-
-      <FlatList
-        data={reminders}
-        keyExtractor={(item) => item.id.toString()}
-        renderItem={({ item }) => (
-          <View
-            style={[
-              styles.reminderRow,
-              {
-                backgroundColor: dark ? '#111' : '#fff',
-                borderColor: dark ? '#333' : '#eee',
-              },
-            ]}
-          >
-            <View>
-              <Text style={[styles.timeText, { color: dark ? '#fff' : '#000' }]}>
-                {formatTime(new Date(`1970-01-01T${item.time}`))}
-              </Text>
-              <Text style={[styles.scheduledText, { color: dark ? '#aaa' : '#666' }]}>
-                {getScheduledInfo(item.time)}
-              </Text>
-            </View>
-
-            <View style={styles.rightButtons}>
-              <Switch
-                value={item.enabled}
-                onValueChange={() => toggleReminder(item.id)}
-                trackColor={{ false: dark ? '#444' : '#ccc', true: '#007AFF' }}
-                thumbColor={item.enabled ? '#fff' : '#888'}
-              />
-              <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.deleteIcon}>
-                <Feather name="trash-2" size={20} color={dark ? '#ff5555' : '#007AFF'} />
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
+        {showExactAlarmCard ? (
+          <View style={styles.exactAlarmCard}>
+            <View style={styles.exactTopRow}>
+              <View style={styles.exactIcon}>
+                <Image source={require('../assets/exact.png')} style={styles.infoImage} resizeMode="contain" />
+              </View>
+              <View style={styles.exactCopy}>
+                <Text style={styles.exactAlarmTitle}>Enable Exact Alarms</Text>
+                <Text style={styles.exactAlarmMessage}>
+                  Allow exact alarms to make sure your reminders go off on time.
+                </Text>
+              </View>
+              <TouchableOpacity style={styles.exactAlarmBtn} onPress={handleOpenExactAlarmSettings}>
+                <Text style={styles.exactAlarmBtnText}>Enable</Text>
+                <Feather name="chevron-right" size={18} color="#fff" />
               </TouchableOpacity>
             </View>
+            <View style={styles.androidPill}>
+              <FontAwesome5 name="android" size={14} color={GOLD} />
+              <Text style={styles.androidPillText}>Recommended for best experience on Android</Text>
+            </View>
           </View>
-        )}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        showsVerticalScrollIndicator={false}
-      />
+        ) : null}
 
-      {/* TIPS MODAL */}
-      <Modal visible={showTipsModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
-          <View
-            style={[
-              styles.tipsBox,
-              { backgroundColor: dark ? '#1c1c1e' : '#fff' },
-            ]}
-          >
-            {/* Title */}
-            <Text
-              style={[
-                styles.tipsTitle,
-                { color: dark ? '#fff' : '#000' },
-              ]}
-            >
-              💡 Tips
-            </Text>
-
-            {/* Tips List */}
-            <View style={styles.tipRow}>
-              <Feather name="plus-circle" size={20} color="#007AFF" />
-              <Text
-                style={[
-                  styles.tipText,
-                  { color: dark ? '#ccc' : '#444' },
-                ]}
-              >
-                Add a custom reminder using the  <Feather name="plus" size={20} color={dark ? '#fff' : '#000'} /> button on top.
-              </Text>
-            </View>
-
-            <View style={styles.tipRow}>
-              <Feather name="toggle-right" size={20} color="#007AFF" />
-              <Text
-                style={[
-                  styles.tipText,
-                  { color: dark ? '#ccc' : '#444' },
-                ]}
-              >
-                Pause or resume a reminder using the toggle switch.
-              </Text>
-            </View>
-
-            <View style={styles.tipRow}>
-              <Feather name="trash-2" size={20} color="#007AFF" />
-              <Text
-                style={[
-                  styles.tipText,
-                  { color: dark ? '#ccc' : '#444' },
-                ]}
-              >
-                Delete a reminder using the trash icon.
-              </Text>
-            </View>
-
-            {/* Got it Button */}
-            <TouchableOpacity
-              onPress={() => setShowTipsModal(false)}
-              style={styles.gotItButton}
-            >
-              <Text style={styles.gotItText}>Got it</Text>
-            </TouchableOpacity>
+        <View style={styles.infoCard}>
+          <View style={styles.infoImageCircle}>
+            <Image source={require('../assets/reminderinfo.png')} style={styles.infoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.infoTitle}>We'll remind you to drink water at the right time.</Text>
+            <Text style={styles.infoText}>These reminders are personalized for you.</Text>
           </View>
         </View>
-      </Modal>
-      {showPicker && Platform.OS === 'android' && (
+
+        {reminders.length ? reminders.map((reminder, index) => {
+          const meta = getReminderMeta(index);
+          const cardBorderStyle = { borderColor: meta.accent };
+          const timeTextStyle = { color: meta.accent };
+          const quoteBorderStyle = { borderColor: `${meta.accent}55` };
+
+          return (
+            <View key={reminder.id} style={[styles.reminderCard, cardBorderStyle]}>
+              <View style={styles.reminderLeft}>
+                <View style={styles.reminderMain}>
+                  <View style={[styles.reminderIconCircle, cardBorderStyle]}>
+                    <Image source={meta.image} style={styles.reminderImage} resizeMode="contain" />
+                  </View>
+                  <View style={styles.reminderDetails}>
+                    <Text style={styles.reminderTitle} numberOfLines={1}>{meta.title}</Text>
+                    <Text style={[styles.reminderTime, timeTextStyle]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+                      {formatTime(reminder.time)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={[styles.quoteBox, quoteBorderStyle]}>
+                  
+                  <Text style={styles.quoteText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.82}>
+                    {meta.quote}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={[styles.reminderActions, quoteBorderStyle]}>
+                <View style={styles.actionToggleRow}>
+                  <Text style={[styles.enabledText, reminder.enabled ? styles.enabledOn : styles.enabledOff]}>
+                    {reminder.enabled ? 'Enabled' : 'Paused'}
+                  </Text>
+                  <Switch
+                    value={reminder.enabled}
+                    onValueChange={() => toggleReminder(reminder.id)}
+                    trackColor={SWITCH_TRACK}
+                    thumbColor="#fff"
+                    ios_backgroundColor={SWITCH_IOS_BG}
+                    style={styles.switchControl}
+                  />
+                </View>
+                <TouchableOpacity
+                  onPress={() => openTimePicker(reminder)}
+                  style={[styles.changeTimeButton, cardBorderStyle]}
+                >
+                  <Feather name={meta.icon as keyof typeof Feather.glyphMap} size={16} color={meta.accent} />
+                  <Text style={[styles.changeTimeText, timeTextStyle]} numberOfLines={1}>Change Time</Text>
+                </TouchableOpacity>
+                {reminders.length > 3 ? (
+                  <TouchableOpacity onPress={() => handleDelete(reminder.id)} style={styles.deleteButtonSmall}>
+                    <Feather name="trash-2" size={18} color="#ff6a7a" />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+          );
+        }) : (
+          <View style={styles.emptyCard}>
+            <Image source={require('../assets/reminder.png')} style={styles.emptyImage} resizeMode="contain" />
+            <Text style={styles.emptyTitle}>No reminders yet</Text>
+            <Text style={styles.emptyText}>Add a reminder to start getting hydration nudges.</Text>
+            <TouchableOpacity onPress={() => openTimePicker()} style={styles.addReminderButton}>
+              <Feather name="plus" size={21} color="#fff" />
+              <Text style={styles.addReminderText}>Add Reminder</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.scheduledCard}>
+          <View style={styles.scheduledCheck}>
+           <Image source={require('../assets/reminderinfo1.png')} style={styles.scheduledImage} resizeMode="contain" />
+          </View>
+          <View style={styles.flex}>
+            <Text style={styles.scheduledTitle}>Reminders Scheduled</Text>
+            <Text style={styles.scheduledMessage}>
+              Your reminders are active and will notify you at the right time.
+            </Text>
+            <View style={styles.updatedPill}>
+              <Feather name="clock" size={15} color={GREEN} />
+              <Text style={styles.updatedText}>Last updated: {lastUpdatedText}</Text>
+            </View>
+          </View>
+          <Image source={require('../assets/reminderinfo2.png')} style={styles.scheduledImage} resizeMode="contain" />
+        </View>
+      </ScrollView>
+
+      {showPicker && Platform.OS === 'android' ? (
         <DateTimePicker
           mode="time"
           value={time}
           onChange={onChangeTime}
           display="default"
         />
-      )}
+      ) : null}
 
       <Modal visible={iosPickerVisible} animationType="slide" transparent>
         <View style={styles.iosPickerContainer}>
           <View style={styles.iosPicker}>
-            {/* Header Row with Cancel + Done */}
             <View style={styles.iosPickerHeader}>
-              <TouchableOpacity
-                onPress={() => setIosPickerVisible(false)}
-                style={styles.iosPickerButton}
-              >
+              <TouchableOpacity onPress={closePicker} style={styles.iosPickerButton}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={async () => {
-                  const formatted24 = time
-                    .toTimeString()
-                    .split(':')
-                    .slice(0, 2)
-                    .join(':');
-
-                  const updated = await addReminderUtil(formatted24);
-                  setReminders(updated);
-                 await scheduleRemindersIfGoalNotReached();
-                  setIosPickerVisible(false);
+                  await saveSelectedTime(time);
+                  closePicker();
                 }}
                 style={styles.iosPickerButton}
               >
@@ -383,282 +386,564 @@ const handleOpenExactAlarmSettings = async () => {
               </TouchableOpacity>
             </View>
 
-            {/* iOS Time Picker */}
             <DateTimePicker
               mode="time"
               value={time}
               onChange={onChangeTime}
               is24Hour={true}
               display="spinner"
-              style={{ backgroundColor: '#fff' }}
-              textColor="#000"
+              textColor="#fff"
+              style={styles.iosDatePicker}
             />
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={showTipsModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={styles.tipsBox}>
+            <Text style={styles.tipsTitle}>Reminder Tips</Text>
+            <Tip icon="clock" text="Change each reminder time from its card." />
+            <Tip icon="toggle-right" text="Pause or resume reminders using the switch." />
+            <TouchableOpacity onPress={() => setShowTipsModal(false)} style={styles.gotItButton}>
+              <Text style={styles.gotItText}>Got it</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
       <Modal visible={showDeleteModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.alertBox, { backgroundColor: dark ? '#222' : '#fff' }]}>
-            <Text style={[styles.alertTitle, { color: dark ? '#fff' : '#000' }]}>Delete Reminder</Text>
-            <Text style={[styles.alertMessage, { color: dark ? '#ccc' : '#444' }]}>
+          <View style={styles.alertBox}>
+            <Text style={styles.alertTitle}>Delete Reminder</Text>
+            <Text style={styles.alertMessage}>
               Are you sure you want to delete this reminder?
             </Text>
 
             <View style={styles.alertActions}>
-              <TouchableOpacity onPress={() => setShowDeleteModal(false)} style={[styles.alertButton, styles.cancelButton]}>
+              <TouchableOpacity onPress={() => setShowDeleteModal(false)} style={styles.cancelActionButton}>
                 <Text style={styles.cancelText}>Cancel</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={confirmDelete} style={[styles.alertButton, styles.deleteButton]}>
+              <TouchableOpacity onPress={confirmDelete} style={styles.deleteActionButton}>
                 <Text style={styles.deleteText}>Delete</Text>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
-
-
     </SafeAreaView>
+    </LinearGradient>
   );
 };
+
+const Tip = ({ icon, text }: { icon: keyof typeof Feather.glyphMap; text: string }) => (
+  <View style={styles.tipRow}>
+    <Feather name={icon} size={21} color={BLUE} />
+    <Text style={styles.tipText}>{text}</Text>
+  </View>
+);
 
 export default ReminderSettingsScreen;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal,
   },
+  safeArea: {
+    flex: 1,
+  },
+  flex: {
+    flex: 1,
+  },
+  
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    paddingTop: 12,
+    paddingBottom: 22,
+    paddingHorizontal: SCREEN_PADDING,
+    position: 'relative',
   },
-  leftSection: {
-    flexDirection: 'row',
+  headerCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 28,
+    borderWidth: 1.4,
+    borderColor: 'rgba(223, 232, 255, 0.65)',
     alignItems: 'center',
-  },
-  backIcon: {
-    marginRight: 10,
-  },
-  fabIcon: {
-    width: fabSize,
-    height: fabSize,
-    borderRadius: fabRadius,
-    backgroundColor: '#007AFF',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.035)',
+  },
+  headerCopy: {
     alignItems: 'center',
-    elevation: 3,
+    position: 'absolute',
+    left: 68,
+    right: 68,
   },
   headerTitle: {
-    fontSize: headerTitleFontSize,
-    fontWeight: '600',
+    color: '#fff',
+    fontSize: isSmallDevice ? 15 : 20, 
+    fontWeight: '900',
+    textAlign: 'center',
   },
-  rightSpacer: {
-    width: fabSize, // same as fabIcon width to balance
+  headerSubtitle: {
+    color: MUTED,
+    fontSize: isSmallDevice ? 4 : 10,
+    marginTop: 6,
+    textAlign: 'center',
   },
-  reminderRow: {
+  scrollContent: {
+    paddingBottom: 34,
+    paddingHorizontal: SCREEN_PADDING,
+  },
+  exactAlarmCard: {
+    borderRadius: 16,
+    borderWidth: 1.2,
+    borderColor: '#f0aa21',
+    backgroundColor: 'rgba(54, 32, 5, 0.55)',
+    paddingHorizontal: isSmallDevice ? 12 : 16,
+    paddingVertical: isSmallDevice ? 12 : 14,
+    marginBottom: 18,
+  },
+  exactTopRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: reminderRowPaddingV,
-    borderWidth: 1.5,
-    borderRadius: reminderRowRadius,
-    marginVertical: reminderRowMarginV,
-    paddingHorizontal: reminderRowPaddingH,
-  },
-  timeText: {
-    fontSize: timeTextFontSize,
-    fontWeight: '400',
-  },
-  rightButtons: {
-    flexDirection: 'row',
     alignItems: 'center',
   },
-  deleteIcon: {
-    marginLeft: deleteIconMarginL,
-  },
-  fabCenter: {
-    position: 'absolute',
-    bottom: 30,
-    left: '56%',
-    transform: [{ translateX: -fabSize / 2 }],
-    backgroundColor: '#007AFF',
-    width: fabSize * 1.75,
-    height: fabSize * 1.75,
-    borderRadius: fabSize * 0.875,
+  exactIcon: {
+    width: isSmallDevice ? 40 : 48,
+    height: isSmallDevice ? 40 : 48,
+    borderRadius: isSmallDevice ? 25 : 29,
+    alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(255, 180, 36, 0.18)',
+    borderWidth: 1,
+    borderColor: '#f0aa21',
+    marginRight: isSmallDevice ? 10 : 14,
+  },
+  exactCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  exactAlarmTitle: {
+    color: '#fff',
+    fontSize: isSmallDevice ? 15 : 14,
+    fontWeight: '500',
+  },
+  exactAlarmMessage: {
+    color: '#f1e5cc',
+    fontSize: isSmallDevice ? 11 : 10,
+    lineHeight: isSmallDevice ? 15 : 17,
+    marginTop: 5,
+  },
+  androidPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 5,
+    gap: 6,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 196, 55, 0.34)',
+    backgroundColor: 'rgba(255, 196, 55, 0.08)',
+    paddingHorizontal: isSmallDevice ? 8 : 10,
+    paddingVertical: isSmallDevice ? 5 : 6,
+    marginTop: 12,
+    marginLeft: isSmallDevice ? 60 : 72,
+    maxWidth: '100%',
+  },
+  androidPillText: {
+    color: GOLD,
+    fontSize: isSmallDevice ? 9 : 10,
+    fontWeight: '700',
+  },
+  exactAlarmBtn: {
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ffbf37',
+    backgroundColor: 'rgba(255, 151, 26, 0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    width: isSmallDevice ? 82 : 76,
+    paddingVertical: isSmallDevice ? 6 : 7,
+    marginLeft: isSmallDevice ? 8 : 12,
+  },
+  exactAlarmBtnText: {
+    color: '#fff',
+    fontSize: isSmallDevice ? 13 : 11,
+    fontWeight: '900',
+  },
+  infoCard: {
+    borderRadius: 21,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: PANEL_SOFT,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 18,
+    marginBottom: 22,
+  },
+  infoImageCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 37,
+    borderWidth: 1,
+    borderColor: BLUE,
+    backgroundColor: 'rgba(22, 184, 255, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  infoImage: {
+    width: 42,
+    height: 42,
+  },
+  infoTitle: {
+    color: '#fff',
+    fontSize: isSmallDevice ? 8 : 12,
+    fontWeight: '900',
+    lineHeight: isSmallDevice ? 11 : 14,
+  },
+  infoText: {
+    color: MUTED,
+    fontSize: isSmallDevice ? 10 : 10,
+    marginTop: 7,
+  },
+  reminderCard: {
+    minHeight: isSmallDevice ? 118 : 132,
+    borderRadius: 18,
+    borderWidth: 1.2,
+    backgroundColor: PANEL,
+    flexDirection: 'row',
+    alignItems: 'stretch',
+    padding: isSmallDevice ? 11 : 14,
+    marginBottom: 16,
+  },
+  reminderLeft: {
+    flex: 1,
+    justifyContent: 'center',
+    minWidth: 0,
+  },
+  reminderMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minWidth: 0,
+    marginBottom: 9,
+  },
+  reminderIconCircle: {
+    width: isSmallDevice ? 48 : 58,
+    height: isSmallDevice ? 48 : 58,
+    borderRadius: isSmallDevice ? 24 : 29,
+    borderWidth: 1.2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    marginRight: isSmallDevice ? 10 : 12,
+    overflow: 'hidden',
+  },
+  reminderImage: {
+    width: isSmallDevice ? 35 : 45,
+    height: isSmallDevice ? 35 : 45,
+  },
+  reminderDetails: {
+    flex: 1,
+    minWidth: 0,
+  },
+  reminderTitle: {
+    color: '#fff',
+    fontSize: isSmallDevice ? 14 : Math.min(15, width * 0.041),
+    flexShrink: 1,
+  },
+  reminderTime: {
+    fontSize: isSmallDevice ? 24 : Math.min(22, width * 0.071),
+    
+    marginTop: 3,
+  },
+  quoteBox: {
+    alignSelf: 'flex-start',
+    borderRadius: 11,
+    borderWidth: 1,
+    backgroundColor: 'rgba(255,255,255,0.035)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: isSmallDevice ? 30 : 34,
+    paddingHorizontal: isSmallDevice ? 8 : 10,
+    paddingVertical: isSmallDevice ? 5 : 7,
+    maxWidth: '100%',
+  },
+  quoteText: {
+    color: '#fff',
+    fontSize: isSmallDevice ? 10 : Math.min(12, width * 0.028),
+    flexShrink: 1,
+  },
+  reminderActions: {
+    width: reminderActionWidth,
+    borderLeftWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: isSmallDevice ? 8 : 12,
+    paddingLeft: isSmallDevice ? 8 : 12,
+  },
+  actionToggleRow: {
+    width: '100%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  enabledText: {
+    fontSize: isSmallDevice ? 10 : 12,
+    fontWeight: '900',
+  },
+  switchControl: {
+    transform: [{ scaleX: 0.72 }, { scaleY: 0.72 }],
+  },
+  enabledOn: {
+    color: GREEN,
+  },
+  enabledOff: {
+    color: '#91a0c8',
+  },
+  changeTimeButton: {
+    width: '100%',
+    borderRadius: 13,
+    borderWidth: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: isSmallDevice ? 5 : 8,
+    paddingVertical: isSmallDevice ? 8 : 9,
+    marginTop: 18,
+  },
+  changeTimeText: {
+    fontSize: isSmallDevice ? 9 : Math.min(8, width * 0.028),
+    
+  },
+  deleteButtonSmall: {
+    marginTop: 10,
+    padding: 6,
+  },
+  emptyCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: PANEL,
+    alignItems: 'center',
+    padding: 26,
+    marginBottom: 20,
+  },
+  emptyImage: {
+    width: 120,
+    height: 120,
+  },
+  emptyTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    marginTop: 10,
+  },
+  emptyText: {
+    color: MUTED,
+    fontSize: 14,
+    textAlign: 'center',
+    marginTop: 7,
+  },
+  addReminderButton: {
+    marginTop: 18,
+    borderRadius: 18,
+    backgroundColor: '#0058ff',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+  },
+  addReminderText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '900',
+  },
+  scheduledCard: {
+    borderRadius: 22,
+    borderWidth: 1.2,
+    borderColor: '#25b66a',
+    backgroundColor: 'rgba(5, 55, 43, 0.55)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    marginBottom: 20,
+  },
+  scheduledCheck: {
+    width: 30,
+    height: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  scheduledTitle: {
+    color: GREEN,
+    fontSize: isSmallDevice ? 10 : 13,
+    fontWeight: '900',
+  },
+  scheduledMessage: {
+    color: '#dce7f8',
+    fontSize: isSmallDevice ? 8 : 10,
+    lineHeight: isSmallDevice ? 19 : 12,
+    marginTop: 7,
+  },
+  updatedPill: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderRadius: 18,
+    backgroundColor: 'rgba(28, 211, 107, 0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(28, 211, 107, 0.22)',
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    marginTop: 12,
+  },
+  updatedText: {
+    color: '#dce7f8',
+    fontSize: isSmallDevice ? 6 : 10,
+  },
+  scheduledImage: {
+    width: 38,
+    height: 38,
+    marginLeft: 10,
   },
   iosPickerContainer: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   iosPicker: {
-    backgroundColor: '#fff',
+    backgroundColor: '#07183e',
     paddingTop: 10,
-    borderTopLeftRadius: iosPickerRadius,
-    borderTopRightRadius: iosPickerRadius,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderWidth: 1,
+    borderColor: BORDER,
   },
-  doneButton: {
-    alignSelf: 'flex-end',
-    paddingHorizontal: doneBtnPaddingH,
-    paddingVertical: doneBtnPaddingV,
+  iosPickerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(80, 114, 176, 0.35)',
+  },
+  iosPickerButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  iosDatePicker: {
+    backgroundColor: '#07183e',
   },
   doneText: {
-    color: '#007AFF',
-    fontSize: doneTextFontSize,
-    fontWeight: '500',
+    color: BLUE,
+    fontSize: 17,
+    fontWeight: '900',
   },
-  scheduledText: {
-    fontSize: scheduledTextFontSize,
-    marginTop: 4,
+  cancelText: {
+    color: MUTED,
+    fontSize: 16,
+    fontWeight: '800',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.62)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  alertBox: {
-    width: '85%',
-    borderRadius: alertBoxRadius,
-    padding: alertBoxPadding,
-    elevation: 5,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  alertContent: {
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  alertTitle: {
-    fontSize: alertTitleFontSize,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  alertMessage: {
-    fontSize: alertMessageFontSize,
-    textAlign: 'center',
-  },
-  alertActions: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 20,
-  },
-  alertButton: {
-    paddingHorizontal: alertButtonPaddingH,
-    paddingVertical: alertButtonPaddingV,
-    borderRadius: alertButtonRadius,
-    marginHorizontal: alertButtonMarginH,
-  },
-  cancelButton: {
-    backgroundColor: '#ccc',
-  },
-  deleteButton: {
-    backgroundColor: '#007AFF',
-  },
-  cancelText: {
-    color: '#000',
-    fontWeight: '500',
-  },
-  deleteText: {
-    color: '#fff',
-    fontWeight: '500',
+    padding: 22,
   },
   tipsBox: {
-    width: '85%',
-    borderRadius: 16,
-    padding: 20,
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
-    alignItems: 'flex-start',
+    width: '100%',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: '#07183e',
+    padding: 22,
   },
   tipsTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    marginBottom: 16,
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 18,
   },
   tipRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 15,
   },
   tipText: {
-    marginLeft: 10,
+    color: MUTED,
+    marginLeft: 12,
     fontSize: 15,
-    flexShrink: 1,
+    flex: 1,
+    lineHeight: 21,
   },
   gotItButton: {
     alignSelf: 'center',
-    marginTop: 20,
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 25,
+    marginTop: 12,
+    backgroundColor: '#0058ff',
+    paddingHorizontal: 34,
+    paddingVertical: 13,
+    borderRadius: 24,
   },
   gotItText: {
     color: '#fff',
-    fontWeight: '600',
+    fontWeight: '900',
     fontSize: 16,
   },
-  infoIconButton: {
-    width: fabSize * 0.65,   // smaller than add button
-    height: fabSize * 0.65,
-    borderRadius: (fabSize * 0.65) / 2,
-    backgroundColor: '#666',
-    justifyContent: 'center',
+  alertBox: {
+    width: '100%',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: '#07183e',
+    padding: 22,
     alignItems: 'center',
-    marginRight: 10,
-    elevation: 2,
   },
-
-  iosPickerHeader: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'center',
-  paddingHorizontal: 16,
-  paddingVertical: 10,
-  borderBottomWidth: 1,
-  borderBottomColor: '#ddd',
-},
-iosPickerButton: {
-  paddingHorizontal: 10,
-  paddingVertical: 6,
-},
-exactAlarmCard: {
-  padding: 16,
-  borderWidth: 1.5,
-  borderRadius: 16,
-  marginVertical: 10,
-  marginHorizontal: 0,
-},
-exactAlarmTitle: {
-  fontSize: 16,
-  fontWeight: '700',
-  marginBottom: 6,
-},
-exactAlarmMessage: {
-  fontSize: 14,
-  marginBottom: 12,
-},
-exactAlarmBtn: {
-  backgroundColor: '#007AFF',
-  paddingVertical: 8,
-  paddingHorizontal: 16,
-  borderRadius: 10,
-  alignSelf: 'flex-start',
-},
-exactAlarmBtnText: {
-  color: '#fff',
-  fontWeight: '600',
-},
-
-
+  alertTitle: {
+    color: '#fff',
+    fontSize: 22,
+    fontWeight: '900',
+    marginBottom: 9,
+  },
+  alertMessage: {
+    color: MUTED,
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
+  },
+  alertActions: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginTop: 22,
+  },
+  cancelActionButton: {
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    marginHorizontal: 8,
+  },
+  deleteActionButton: {
+    borderRadius: 16,
+    backgroundColor: '#ff4d64',
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    marginHorizontal: 8,
+  },
+  deleteText: {
+    color: '#fff',
+    fontWeight: '900',
+    fontSize: 16,
+  },
 });

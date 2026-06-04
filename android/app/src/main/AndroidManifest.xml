@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -41,6 +42,10 @@
       </activity>
       <meta-data android:name="notifee.notification_channel_channel_id"
            android:value="hydration-reminder-channel"/>
+      <meta-data
+        android:name="com.google.android.gms.ads.APPLICATION_ID"
+        android:value="ca-app-pub-9770614367990455~3902339721"
+        tools:replace="android:value" />
       <receiver
          android:name="io.invertase.notifee.receiver.NotificationAlarmReceiver"
          android:exported="true" />

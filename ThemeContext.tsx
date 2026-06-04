@@ -30,6 +30,16 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     loadStoredTheme();
   }, []);
 
+  useEffect(() => {
+    const subscription = Appearance.addChangeListener(({ colorScheme }) => {
+      if (selectedOption === 'system') {
+        setTheme(colorScheme === 'dark' ? 'dark' : 'light');
+      }
+    });
+
+    return () => subscription.remove();
+  }, [selectedOption]);
+
   const applyTheme = (option: ThemeType) => {
     if (option === 'system') {
       const sys = Appearance.getColorScheme();

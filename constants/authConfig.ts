@@ -1,0 +1,16 @@
+export const GOOGLE_WEB_CLIENT_ID: string = '1046122049307-1gggr7fndtec705e8ea87mmjn0dtkqcd.apps.googleusercontent.com';
+export const GOOGLE_IOS_CLIENT_ID: string = '1046122049307-re2hvtejl29mhir0bng9kbanaq681si7.apps.googleusercontent.com';
+export const GOOGLE_IOS_REVERSED_CLIENT_ID: string = 'com.googleusercontent.apps.1046122049307-re2hvtejl29mhir0bng9kbanaq681si7';
+
+const GOOGLE_WEB_CLIENT_ID_PLACEHOLDER = 'REPLACE_WITH_FIREBASE_WEB_CLIENT_ID';
+const GOOGLE_IOS_CLIENT_ID_PLACEHOLDER = 'REPLACE_WITH_IOS_CLIENT_ID';
+const GOOGLE_IOS_REVERSED_CLIENT_ID_PLACEHOLDER = 'REPLACE_WITH_IOS_REVERSED_CLIENT_ID';
+
+export const isGoogleAuthConfigured = () =>
+  GOOGLE_WEB_CLIENT_ID.length > 0 && GOOGLE_WEB_CLIENT_ID !== GOOGLE_WEB_CLIENT_ID_PLACEHOLDER;
+
+export const isGoogleIosAuthConfigured = () =>
+  GOOGLE_IOS_CLIENT_ID.length > 0 &&
+  GOOGLE_IOS_CLIENT_ID !== GOOGLE_IOS_CLIENT_ID_PLACEHOLDER &&
+  GOOGLE_IOS_REVERSED_CLIENT_ID.length > 0 &&
+  GOOGLE_IOS_REVERSED_CLIENT_ID !== GOOGLE_IOS_REVERSED_CLIENT_ID_PLACEHOLDER;

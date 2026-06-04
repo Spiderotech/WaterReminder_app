@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export interface UserProfile {
+  username?: string;
+  avatar?: string;
   gender: string;
   height: number;
   weight: number;
@@ -9,6 +11,9 @@ export interface UserProfile {
   sleepTime: string;   // format: HH:mm
   activityLevel: string;
   climate: string;
+  country?: string;
+  countryCode?: string;
+  city?: string;
 }
 
 const USER_PROFILE_KEY = 'userProfile';
@@ -77,5 +82,5 @@ export const updateUserProfile = async (
 
 export const getHydrationGoal = async (): Promise<number> => {
   const stored = await AsyncStorage.getItem('hydrationGoal');
-  return stored ? parseInt(stored) : 2500; 
+  return stored ? parseInt(stored, 10) : 2500;
 };

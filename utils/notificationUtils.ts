@@ -6,17 +6,11 @@ import notifee, {
 } from '@notifee/react-native';
 import { Platform, PermissionsAndroid, Linking, Alert } from 'react-native';
 import { getReminders, Reminder } from './reminderUtils';
-import {
-  checkPermission as checkExactAlarmPermission,
-  getPermission as requestExactAlarmPermission,
-} from 'react-native-schedule-exact-alarm-permission';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getTodayTotalIntake } from './waterIntakeUtils';
+import { getUnshownBackendNotifications, markBackendNotificationsShown } from '../services/notificationFeedService';
 
 let scheduledNotificationIds: string[] = [];
-
-const WATER_INTAKE_KEY = 'dailyWaterIntake';
-const WATER_GOAL_KEY = 'hydrationGoal';
 
 export async function requestNotificationPermission() {
   // 1. Android 13+ POST_NOTIFICATIONS permission
@@ -66,6 +60,12 @@ export async function createNotificationChannel() {
     importance: 4,
     sound: 'notification', // ensure this exists in res/raw as notification.mp3 or .wav
   });
+  await notifee.createChannel({
+    id: 'global-updates-channel',
+    name: 'DoraDrink Updates',
+    importance: 4,
+    sound: 'notification',
+  });
 }
 
 export async function cancelAllHydrationReminders() {
@@ -87,19 +87,18 @@ const getLocalDateString = (timestamp: number) => {
 export async function scheduleReminderNotifications(reminders: Reminder[]) {
   await cancelAllHydrationReminders();
   scheduledNotificationIds = [];
+  const slotReminders = reminders.filter(reminder => reminder.enabled).slice(0, 3);
 
   const todayStr = getLocalDateString(Date.now());
   const totalIntake = await getTodayTotalIntake();
   const goalStr = await AsyncStorage.getItem('hydrationGoal');
-  const goal = goalStr ? parseInt(goalStr) : 0;
+  const goal = goalStr ? parseInt(goalStr, 10) : 0;
 
-  for (const reminder of reminders) {
-    if (!reminder.enabled) continue;
-
+  for (const reminder of slotReminders) {
     const [hourStr, minuteStr, secondStr = '0'] = reminder.time.split(':');
-    const hour = parseInt(hourStr);
-    const minute = parseInt(minuteStr);
-    const second = parseInt(secondStr);
+    const hour = parseInt(hourStr, 10);
+    const minute = parseInt(minuteStr, 10);
+    const second = parseInt(secondStr, 10);
 
     const now = new Date();
     const triggerDate = new Date();
@@ -168,4 +167,31 @@ export async function testInstantNotification() {
     },
     trigger
   );
+}
+
+export async function showUnseenBackendNotifications() {
+  const notifications = await getUnshownBackendNotifications();
+  if (!notifications.length) return;
+
+  for (const notification of notifications.slice(0, 3)) {
+    await notifee.displayNotification({
+      id: notification.id,
+      title: notification.title,
+      body: notification.body,
+      android: {
+        channelId: 'global-updates-channel',
+        smallIcon: 'ic_launcher',
+        sound: 'notification',
+        pressAction: { id: 'default' },
+      },
+      ios: {
+        sound: 'notification.wav',
+      },
+      data: {
+        route: notification.route || '',
+      },
+    });
+  }
+
+  await markBackendNotificationsShown(notifications.map(notification => notification.id));
 }

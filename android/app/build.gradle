@@ -1,6 +1,7 @@
 apply plugin: "com.android.application"
 apply plugin: "org.jetbrains.kotlin.android"
 apply plugin: "com.facebook.react"
+apply plugin: "com.google.gms.google-services"
 
 
 
@@ -61,6 +62,10 @@ react {
  */
 def enableProguardInReleaseBuilds = true
 
+def releaseSigningValue = { name, fallback = null ->
+    def value = project.findProperty(name) ?: System.getenv(name)
+    return value ?: fallback
+}
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
@@ -86,8 +91,8 @@ android {
         applicationId "com.doradrinkwaterreminderapp"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.1.1"
+        versionCode 4
+        versionName "1.1.2"
     }
      
     signingConfigs {
@@ -98,10 +103,10 @@ android {
         keyPassword 'android'
     }
     release {
-        storeFile file(MYAPP_RELEASE_STORE_FILE)
-        storePassword MYAPP_RELEASE_STORE_PASSWORD
-        keyAlias MYAPP_RELEASE_KEY_ALIAS
-        keyPassword MYAPP_RELEASE_KEY_PASSWORD
+        storeFile file(releaseSigningValue("MYAPP_RELEASE_STORE_FILE", "my-release-key.keystore"))
+        storePassword releaseSigningValue("MYAPP_RELEASE_STORE_PASSWORD", "")
+        keyAlias releaseSigningValue("MYAPP_RELEASE_KEY_ALIAS", "")
+        keyPassword releaseSigningValue("MYAPP_RELEASE_KEY_PASSWORD", "")
     }
 }
     buildTypes {

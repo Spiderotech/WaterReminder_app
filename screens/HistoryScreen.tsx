@@ -1,392 +1,412 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  FlatList,
-  StyleSheet,
-  TouchableOpacity,
-  Dimensions,
   ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
-import { BarChart } from 'react-native-chart-kit';
-import Feather from 'react-native-vector-icons/Feather';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useThemeContext } from '../ThemeContext';
-import { getTodayLogs, deleteWaterLog } from '../utils/waterIntakeUtils';
-import { generateDailyHistory, generateMonthlyHistory } from '../utils/historyUtils';
-import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
-import { getWaterReportStats } from '../utils/DrinkingreportUtils';
+import { SafeAreaView } from '../components/AppSafeAreaView';
+import LinearGradient from 'react-native-linear-gradient';
+import Feather from 'react-native-vector-icons/Feather';
+import {
+  analyticsTabs,
+  HistoryAnalyticsKey,
+  periodTabs,
+  PeriodKey,
+  summaryCards,
+} from '../constants/historyData';
+import {
+  AnalyticsTabs,
+  CompetitionAnalytics,
+  HydrationAnalytics,
+  RewardsAnalytics,
+  SlotsAnalytics,
+  StreakAnalytics,
+  SummaryCard,
+} from '../components/history';
+import { MainTabTheme, useMainTabTheme } from '../constants/mainTabTheme';
+import {
+  getHistoryAnalyticsSnapshot,
+  HistoryAnalyticsSnapshot,
+} from '../services/historyAnalyticsService';
+import { SummaryCardData } from '../constants/historyData';
 
+const screenPadding = 14;
+const summaryGap = 14;
 
+const defaultSnapshot: HistoryAnalyticsSnapshot = {
+  period: 'week',
+  periodLabel: 'This Week',
+  wallet: { coins: 0, diamonds: 0, energyLevel: 7 },
+  streak: { current: 0, best: 0, totalCompletedDays: 0 },
+  weeklyTotalLiters: 0,
+  weeklyAverageLiters: 0,
+  bestDay: { label: 'Today', liters: 0 },
+  completionRate: 0,
+  chart: [],
+  recentTaps: [],
+  slotMetrics: [],
+  weeklyTracker: [false, false, false, false, false, false, false],
+  totalSlots: 21,
+  rewardsThisWeek: 0,
+  rewardBreakdown: [],
+  donutSegments: [],
+};
 
+const buildSummaryCards = (snapshot: HistoryAnalyticsSnapshot): SummaryCardData[] =>
+  summaryCards.map(card => {
+    if (card.id === 'water') {
+      return {
+        ...card,
+        value: `${snapshot.weeklyTotalLiters.toFixed(1)} L`,
+        caption: snapshot.periodLabel,
+        trend: `${snapshot.weeklyAverageLiters.toFixed(2)} L/day`,
+      };
+    }
 
+    if (card.id === 'streak') {
+      return {
+        ...card,
+        value: String(snapshot.streak.current),
+        footer: `Best: ${snapshot.streak.best} days`,
+      };
+    }
 
-const { width, height } = Dimensions.get('window');
+    if (card.id === 'coins') {
+      return {
+        ...card,
+        value: snapshot.rewardsThisWeek.toLocaleString(),
+        caption: snapshot.periodLabel,
+        trend: `claimed ${snapshot.period === 'today' ? 'today' : snapshot.periodLabel.toLowerCase()}`,
+      };
+    }
 
-const isSmallDevice = width < 350 || height < 650;
+    if (card.id === 'completion') {
+      return {
+        ...card,
+        value: `${snapshot.completionRate}%`,
+        caption: snapshot.periodLabel,
+        trend: `${snapshot.slotMetrics.reduce((sum, slot) => sum + slot.completed, 0)} / ${snapshot.totalSlots} slots`,
+      };
+    }
 
-// Responsive values (update for small devices)
-const padding = isSmallDevice ? 8 : Math.max(16, width * 0.05);
-const headerTitleFontSize = isSmallDevice ? 15 : Math.max(18, width * 0.05);
-const tabFontSize = isSmallDevice ? 12 : Math.max(16, width * 0.045);
-const tabPaddingV = isSmallDevice ? 4 : Math.max(8, height * 0.012);
-const tabPaddingH = isSmallDevice ? 12 : Math.max(28, width * 0.08);
-const dateTextFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
-const chartRadius = isSmallDevice ? 8 : Math.max(12, width * 0.035);
-const chartMarginB = isSmallDevice ? 10 : Math.max(20, height * 0.03);
-const sectionRadius = isSmallDevice ? 10 : Math.max(16, width * 0.045);
-const sectionPadding = isSmallDevice ? 8 : Math.max(16, width * 0.045);
-const historyTitleFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.05);
-const historyTitleMarginB = isSmallDevice ? 8 : Math.max(16, height * 0.022);
-const historyItemPaddingV = isSmallDevice ? 6 : Math.max(12, height * 0.018);
-const historyLabelFontSize = isSmallDevice ? 12 : Math.max(16, width * 0.045);
-const historyTimeFontSize = isSmallDevice ? 10 : Math.max(12, width * 0.035);
-const historyAmountFontSize = isSmallDevice ? 12 : Math.max(16, width * 0.045);
-const noHistoryMarginT = isSmallDevice ? 10 : Math.max(20, height * 0.03);
-const noHistoryIconSize = isSmallDevice ? 24 : Math.max(40, width * 0.12);
-const noHistoryTextMarginT = isSmallDevice ? 5 : Math.max(10, height * 0.015);
-const reportCardRadius = isSmallDevice ? 10 : Math.max(16, width * 0.045);
-const reportCardPadding = isSmallDevice ? 8 : Math.max(16, width * 0.045);
-const reportTitleFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.055);
-const reportTitleMarginB = isSmallDevice ? 6 : Math.max(12, height * 0.018);
-const reportLabelFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
-const reportValueFontSize = isSmallDevice ? 11 : Math.max(14, width * 0.04);
-const reportRowPaddingV = isSmallDevice ? 3 : Math.max(6, height * 0.009);
-
-const HistoryScreen = () => {
-  const navigation = useNavigation();
-  const { theme } = useThemeContext();
-  const dark = theme === 'dark';
-
-  const [history, setHistory] = useState<any[]>([]);
-  const [chartData, setChartData] = useState({ labels: [], datasets: [{ data: [] }] });
-  const [activeTab, setActiveTab] = useState<'week' | 'month'>('week');
-  const [report, setReport] = useState({
-    weeklyAvg: 0,
-    monthlyAvg: 0,
-    avgCompletion: 0,
-    drinkFreq: '0.0',
+    return card;
   });
 
-  const getIconForAmount = (amount: number) => {
-    if (amount <= 100) return 'glass-cocktail';
-    if (amount <= 125) return 'glass-pint-outline';
-    if (amount <= 150) return 'cup-outline';
-    if (amount <= 200) return 'cup';
-    if (amount <= 250) return 'glass-mug';
-    if (amount <= 300) return 'cup-water';
-    if (amount <= 350) return 'bottle-tonic';
-    if (amount <= 400) return 'bottle-wine-outline';
-    return 'bottle-soda-classic-outline';
-  };
+const HistoryScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
+  const navigation = useNavigation();
+  const tabTheme = useMainTabTheme();
+  const [activePeriod, setActivePeriod] = useState<PeriodKey>('week');
+  const [activeAnalytics, setActiveAnalytics] = useState<HistoryAnalyticsKey>('hydration');
+  const [analyticsSnapshot, setAnalyticsSnapshot] = useState<HistoryAnalyticsSnapshot>(defaultSnapshot);
 
   useFocusEffect(
     useCallback(() => {
-      const loadData = async () => {
-        await fetchTodayLogs();
-        const reportStats = await getWaterReportStats();
-        setReport(reportStats);
+      let isActive = true;
 
-        if (activeTab === 'week') {
-          await fetchWeeklyChart();
-        } else {
-          await fetchMonthlyChart();
+      getHistoryAnalyticsSnapshot(activePeriod).then(snapshot => {
+        if (isActive) {
+          setAnalyticsSnapshot(snapshot);
         }
+      });
+
+      return () => {
+        isActive = false;
       };
-      loadData();
-    }, [activeTab])
+    }, [activePeriod]),
   );
 
+  const currentSummaryCards = useMemo(() => buildSummaryCards(analyticsSnapshot), [analyticsSnapshot]);
+  const summaryRows = useMemo(() => {
+    const rows: SummaryCardData[][] = [];
 
-  const fetchTodayLogs = async () => {
-    const logs = await getTodayLogs(); // only today's logs
-    const parsed = logs.map(log => ({
-      id: log.id,
-      amount: log.amount,
-      time: new Date(log.timestamp).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-    }));
-    setHistory(parsed.reverse());
-  };
-
-
-  const fetchWeeklyChart = async () => {
-    const daily = await generateDailyHistory();
-    const past7 = daily.slice(-7);
-    const labels = past7.map(entry => entry.date.slice(8)); // show day
-    const values = past7.map(entry => entry.total);
-    setChartData({
-      labels,
-      datasets: [{ data: values }],
-    });
-  };
-
-  const fetchMonthlyChart = async () => {
-    const monthly = await generateMonthlyHistory();
-    const past6 = monthly.slice(-6);
-    const labels = past6.map(entry => {
-      const [year, month] = entry.month.split('-');
-      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-      return monthNames[parseInt(month, 10) - 1];
-    });
-    const values = past6.map(entry => entry.total);
-    setChartData({
-      labels,
-      datasets: [{ data: values }],
-    });
-  };
-
-
-  const handleDelete = async (id: string) => {
-    await deleteWaterLog(id);
-    fetchTodayLogs();
-    if (activeTab === 'week') {
-      fetchWeeklyChart();
-    } else {
-      fetchMonthlyChart();
+    for (let index = 0; index < currentSummaryCards.length; index += 2) {
+      rows.push(currentSummaryCards.slice(index, index + 2));
     }
-  };
 
-  const chartConfig = {
-    backgroundGradientFrom: dark ? '#000' : '#fff',
-    backgroundGradientTo: dark ? '#000' : '#fff',
-    decimalPlaces: 0,
-    fillShadowGradient: '#007AFF',
-    fillShadowGradientOpacity: 1,
-    color: () => '#007AFF',
-    labelColor: () => (dark ? '#bbb' : '#666'),
-    propsForBackgroundLines: {
-      stroke: dark ? '#333' : '#eee',
-    },
+    return rows;
+  }, [currentSummaryCards]);
+
+  const handleBackPress = useCallback(() => {
+    if (goToTab) {
+      goToTab('home');
+      return;
+    }
+    navigation.goBack();
+  }, [goToTab, navigation]);
+
+  const renderAnalytics = () => {
+    if (activeAnalytics === 'hydration') {
+      return <HydrationAnalytics snapshot={analyticsSnapshot} />;
+    }
+
+    if (activeAnalytics === 'slots') {
+      return <SlotsAnalytics snapshot={analyticsSnapshot} />;
+    }
+
+    if (activeAnalytics === 'streaks') {
+      return <StreakAnalytics snapshot={analyticsSnapshot} />;
+    }
+
+    if (activeAnalytics === 'rewards') {
+      return <RewardsAnalytics snapshot={analyticsSnapshot} />;
+    }
+
+    return <CompetitionAnalytics />;
   };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: dark ? '#000' : '#fff' }]}>
-      <ScrollView
-        contentContainerStyle={{ paddingBottom: 40 }}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Feather name="arrow-left" size={24} color={dark ? '#fff' : '#000'} />
-          </TouchableOpacity>
-          <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>History</Text>
-          <TouchableOpacity onPress={() => navigation.navigate('Settings')}>
-            <Feather name="settings" size={24} color={dark ? '#fff' : '#000'} />
-          </TouchableOpacity>
-        </View>
+    <LinearGradient colors={tabTheme.background} style={styles.background}>
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Header
+            onBackPress={handleBackPress}
+            onNotificationPress={() => navigation.navigate('Notifications' as never)}
+            theme={tabTheme}
+          />
 
-        {/* Toggle */}
-        <View style={[styles.toggleContainer, { backgroundColor: dark ? '#222' : '#f0f4f8' }]}>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'week' && styles.activeTab]}
-            onPress={() => setActiveTab('week')}
-          >
-            <Text style={activeTab === 'week' ? styles.activeText : [styles.tabText, { color: dark ? '#aaa' : '#777' }]}>Week</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.tabButton, activeTab === 'month' && styles.activeTab]}
-            onPress={() => setActiveTab('month')}
-          >
-            <Text style={activeTab === 'month' ? styles.activeText : [styles.tabText, { color: dark ? '#aaa' : '#777' }]}>Month</Text>
-          </TouchableOpacity>
-        </View>
+          <PeriodSelector activePeriod={activePeriod} onChange={setActivePeriod} theme={tabTheme} />
 
-        {/* Chart */}
-        <Text style={[styles.dateText, { color: dark ? '#aaa' : '#555', textAlign: 'center', marginVertical: 10 }]}>
-          {activeTab === 'week' ? 'Past 7 Days' : 'Last 6 Months'}
-        </Text>
-        <BarChart
-          data={chartData}
-          width={width - (isSmallDevice ? 20 : 40)}
-          height={isSmallDevice ? 120 : 220}
-          yAxisSuffix=" mL"
-          chartConfig={chartConfig}
-          fromZero
-          showValuesOnTopOfBars
-          style={styles.chart}
-        />
-
-        {/* History List */}
-        <View style={[styles.historySection, { backgroundColor: dark ? '#111' : '#f9f9f9' }]}>
-          <Text style={[styles.historyTitle, { color: dark ? '#fff' : '#000' }]}>Today's Records</Text>
-          {history.length === 0 ? (
-            <View style={styles.noHistory}>
-              <Feather name="file-text" size={40} color="#ccc" />
-              <Text style={[styles.noHistoryText, { color: dark ? '#888' : '#999' }]}>
-                No water intake records yet.
-              </Text>
-            </View>
-          ) : (
-            <View >
-              <FlatList
-                data={history}
-                keyExtractor={(item) => item.id.toString()}
-                showsVerticalScrollIndicator={false}
-                renderItem={({ item }) => (
-                  <View style={[styles.historyItem, { borderColor: dark ? '#333' : '#f0f0f0' }]}>
-                    <View style={styles.historyLeft}>
-                      <MaterialCommunityIcons
-                        name={getIconForAmount(item.amount)}
-                        size={28}
-                        color="#007AFF"
-                      />
-                      <View style={{ marginLeft: 10 }}>
-                        <Text style={[styles.historyLabel, { color: dark ? '#fff' : '#000' }]}>Water</Text>
-                        <Text style={[styles.historyTime, { color: dark ? '#aaa' : '#999' }]}>{item.time}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.historyRight}>
-                      <Text style={[styles.historyAmount, { color: dark ? '#fff' : '#000' }]}>{item.amount} mL</Text>
-                      <TouchableOpacity onPress={() => handleDelete(item.id)}>
-                        <Feather name="trash-2" size={22} color={dark ? '#aaa' : '#999'} style={{ marginLeft: 10 }} />
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                )}
-              />
-            </View>
-          )}
-
-        </View>
-        <View style={[styles.reportCard, { backgroundColor: dark ? '#111' : '#f9f9f9', marginTop: 20, borderRadius: 16, padding: 16 }]}>
-          <Text style={[styles.historyTitle, { color: dark ? '#fff' : '#000', marginBottom: 12 }]}>Drinking Water Report</Text>
-
-          <View style={styles.reportRow}>
-            <Text style={[styles.reportLabel, { color: dark ? '#aaa' : '#555' }]}>Weekly Avg:</Text>
-            <Text style={[styles.reportValue, { color: dark ? '#fff' : '#000' }]}>{report.weeklyAvg} mL</Text>
+          <View style={styles.summaryGrid}>
+            {summaryRows.map((row, rowIndex) => (
+              <View key={`summary-row-${rowIndex}`} style={[styles.summaryRow, rowIndex > 0 && styles.summaryRowSpaced]}>
+                {row.map(item => (
+                  <SummaryCard key={item.id} item={item} />
+                ))}
+              </View>
+            ))}
           </View>
 
-          <View style={styles.reportRow}>
-            <Text style={[styles.reportLabel, { color: dark ? '#aaa' : '#555' }]}>Monthly Avg:</Text>
-            <Text style={[styles.reportValue, { color: dark ? '#fff' : '#000' }]}>{report.monthlyAvg} mL</Text>
-          </View>
+          <AnalyticsTabs tabs={analyticsTabs} activeKey={activeAnalytics} onChange={setActiveAnalytics} />
 
-          <View style={styles.reportRow}>
-            <Text style={[styles.reportLabel, { color: dark ? '#aaa' : '#555' }]}>Avg Completion:</Text>
-            <Text style={[styles.reportValue, { color: dark ? '#fff' : '#000' }]}>{report.avgCompletion}%</Text>
+          <View key={activeAnalytics} style={styles.analyticsShell}>
+            {renderAnalytics()}
           </View>
-
-          <View style={styles.reportRow}>
-            <Text style={[styles.reportLabel, { color: dark ? '#aaa' : '#555' }]}>Drinking Frequency:</Text>
-            <Text style={[styles.reportValue, { color: dark ? '#fff' : '#000' }]}>{report.drinkFreq} / day</Text>
-          </View>
-        </View>
-      </ScrollView>
-
-    </SafeAreaView>
+        </ScrollView>
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
-export default HistoryScreen;
+const Header = ({
+  onBackPress,
+  onNotificationPress,
+  theme,
+}: {
+  onBackPress: () => void;
+  onNotificationPress: () => void;
+  theme: MainTabTheme;
+}) => (
+  <View style={styles.header}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onBackPress} style={[styles.iconButton, { backgroundColor: theme.headerButton, borderColor: theme.border, shadowColor: theme.shadow }]}>
+      <Feather name="chevron-left" size={25} color={theme.icon} />
+    </TouchableOpacity>
+
+    <View style={styles.headerCenter}>
+      <Text style={[styles.title, { color: theme.text }]}>History</Text>
+      <Text style={[styles.subtitle, { color: theme.mutedText }]}>Track your hydration journey</Text>
+    </View>
+
+    <View style={styles.headerActions}>
+      <TouchableOpacity activeOpacity={0.85} onPress={onNotificationPress} style={[styles.notificationButton, { backgroundColor: theme.headerButton, borderColor: theme.border, shadowColor: theme.shadow }]}>
+        <Feather name="bell" size={28} color={theme.icon} />
+        <View style={styles.notificationDot} />
+      </TouchableOpacity>
+    </View>
+  </View>
+);
+
+const PeriodSelector = ({
+  activePeriod,
+  onChange,
+  theme,
+}: {
+  activePeriod: PeriodKey;
+  onChange: (period: PeriodKey) => void;
+  theme: MainTabTheme;
+}) => (
+  <View style={[styles.periodShell, { borderColor: theme.border }]}>
+    <LinearGradient colors={theme.segment} style={styles.periodShellBackground} />
+    <View style={styles.periodList}>
+      {periodTabs.map(period => {
+        const active = period === activePeriod;
+
+        return (
+          <TouchableOpacity key={period} activeOpacity={0.85} onPress={() => onChange(period)} style={styles.periodTouch}>
+            <View style={[styles.periodButton, active && styles.periodButtonActive]}>
+              {active ? <LinearGradient colors={['#1787ff', '#095cff']} style={styles.periodButtonBackground} /> : null}
+              <Text
+                style={[styles.periodText, active ? styles.periodTextActive : theme.isLight ? styles.periodTextLight : styles.periodTextDark]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.8}
+              >
+                {period.charAt(0).toUpperCase() + period.slice(1)}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  </View>
+);
 
 const styles = StyleSheet.create({
-  container: {
+  background: {
     flex: 1,
-    padding,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 36,
+    paddingHorizontal: screenPadding,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 10,
-  },
-  headerTitle: {
-    fontSize: headerTitleFontSize,
-    fontWeight: 'bold',
-  },
-  toggleContainer: {
     flexDirection: 'row',
-    alignSelf: 'center',
-    borderRadius: 30,
+    paddingBottom: 22,
+    paddingTop: 12,
+  },
+  iconButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(8,24,55,0.86)',
+    borderColor: '#315f9f',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    shadowColor: '#1679ff',
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    width: 44,
+  },
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  title: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '600',
+    letterSpacing: 0,
+    lineHeight: 32,
+  },
+  subtitle: {
+    color: '#b7bdd7',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  headerActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+  },
+  notificationButton: {
+    alignItems: 'center',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 44,
+    justifyContent: 'center',
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    width: 44,
+  },
+  notificationDot: {
+    backgroundColor: '#ff3f59',
+    borderRadius: 6,
+    height: 12,
+    position: 'absolute',
+    right: 1,
+    top: 11,
+    width: 12,
+  },
+  periodShell: {
+    backgroundColor: 'rgba(2,10,25,0.96)',
+    borderColor: '#24436e',
+    borderRadius: 38,
+    borderWidth: 1,
+    minHeight: 50,
     overflow: 'hidden',
-    marginTop: 20,
+    position: 'relative',
   },
-  tabButton: {
-    paddingVertical: tabPaddingV,
-    paddingHorizontal: tabPaddingH,
+  periodShellBackground: {
+    ...StyleSheet.absoluteFillObject,
   },
-  activeTab: {
-    backgroundColor: '#007AFF',
+  periodList: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    minHeight: 50,
+    paddingHorizontal: 8,
+  },
+  periodTouch: {
+    flex: 1,
+    minWidth: 0,
+  },
+  periodButton: {
+    alignItems: 'center',
     borderRadius: 30,
+    height: 40,
+    justifyContent: 'center',
+    overflow: 'hidden',
+    position: 'relative',
   },
-  tabText: {
-    fontSize: tabFontSize,
+  periodButtonBackground: {
+    ...StyleSheet.absoluteFillObject,
   },
-  activeText: {
-    color: '#fff',
-    fontWeight: '600',
-    fontSize: tabFontSize,
+  periodButtonActive: {
+    borderColor: '#52b8ff',
+   
+    shadowColor: '#0d7cff',
+    shadowOpacity: 0.8,
+    shadowRadius: 18,
   },
-  dateText: {
-    fontSize: dateTextFontSize,
-    marginTop: 10,
+  periodText: {
+    color: '#dfe6f9',
+    fontSize: 14,
   },
-  chart: {
-    borderRadius: chartRadius,
-    marginBottom: chartMarginB,
+  periodTextDark: {
+    color: '#dfe6f9',
   },
-  historySection: {
-    borderRadius: sectionRadius,
-    padding: sectionPadding,
+  periodTextLight: {
+    color: '#10213f',
   },
-  historyTitle: {
-    fontSize: historyTitleFontSize,
-    fontWeight: 'bold',
-    marginBottom: historyTitleMarginB,
+  periodTextActive: {
+    color: '#ffffff',
+    fontWeight: '900',
   },
-  historyItem: {
+  calendarButton: {
+    alignItems: 'center',
+    backgroundColor: '#0a1b3b',
+    borderColor: '#2864c7',
+    borderRadius: 18,
+    borderWidth: 1,
+    height: 60,
+    justifyContent: 'center',
+    marginLeft: 8,
+    width: 74,
+  },
+  summaryGrid: {
+    paddingTop: 24,
+  },
+  summaryRow: {
+    alignItems: 'stretch',
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: historyItemPaddingV,
-    borderBottomWidth: 1,
   },
-  historyLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  summaryRowSpaced: {
+    marginTop: summaryGap,
   },
-  historyLabel: {
-    fontWeight: '600',
-    fontSize: historyLabelFontSize,
-  },
-  historyTime: {
-    fontSize: historyTimeFontSize,
-  },
-  historyAmount: {
-    fontSize: historyAmountFontSize,
-    fontWeight: '600',
-  },
-  historyRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  noHistory: {
-    alignItems: 'center',
-    marginTop: noHistoryMarginT,
-  },
-  noHistoryText: {
-    marginTop: noHistoryTextMarginT,
-  },
-  reportCard: {
-    marginTop: 20,
-    padding: reportCardPadding,
-    borderRadius: reportCardRadius,
-  },
-  reportRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: reportRowPaddingV,
-  },
-  reportLabel: {
-    fontSize: reportLabelFontSize,
-  },
-  reportValue: {
-    fontSize: reportValueFontSize,
-    fontWeight: '600',
+  analyticsShell: {
+    backgroundColor: 'rgba(5,15,34,0.96)',
+    borderColor: '#1d4784',
+    borderRadius: 20,
+    borderWidth: 1,
+    marginTop: 0,
+    overflow: 'hidden',
   },
 });
+
+export default HistoryScreen;

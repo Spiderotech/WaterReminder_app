@@ -1,537 +1,1276 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Modal,
   FlatList,
   Image,
-  TextInput,
-  Dimensions,
+  ImageSourcePropType,
+  Modal,
+  Platform,
   ScrollView,
-  Platform
+  StyleProp,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+  ViewStyle,
 } from 'react-native';
-import Feather from 'react-native-vector-icons/Feather';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { useThemeContext } from '../ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { City, State } from 'country-state-city';
+import CountryPicker, { Country, CountryCode, Flag } from 'react-native-country-picker-modal';
+import LinearGradient from 'react-native-linear-gradient';
+import { SafeAreaView } from '../components/AppSafeAreaView';
+import Feather from 'react-native-vector-icons/Feather';
+import MaterialCommunityIcons from 'react-native-vector-icons/MaterialCommunityIcons';
+import { MainTabTheme, useMainTabTheme } from '../constants/mainTabTheme';
 import { getUserProfile, updateUserProfile } from '../utils/userUtils';
-import { generateWaterGoal } from '../utils/hydrationUtils';
-import { generateReminders, saveReminders } from '../utils/reminderUtils';
-import { scheduleReminderNotifications, scheduleRemindersIfGoalNotReached } from '../utils/notificationUtils';
 
-const HEIGHT_CM = Array.from({ length: 101 }, (_, i) => 110 + i);
-const AGE_YEARS = Array.from({ length: 83 }, (_, i) => 18 + i);
-const WEIGHT_KG = Array.from({ length: 121 }, (_, i) => 30 + i);
+type ProfileForm = {
+  username?: string;
+  avatar?: string;
+  gender?: string;
+  age?: number;
+  height?: number;
+  weight?: number;
+  wakeUpTime?: string;
+  sleepTime?: string;
+  activityLevel?: string;
+  climate?: string;
+  country?: string;
+  countryCode?: CountryCode;
+  city?: string;
+};
 
-const ACTIVITY_OPTIONS = [
-  { key: 'sedentary', title: 'Sedentary', description: 'Limited physical activity', icon: require('../assets/alone.png') },
-  { key: 'light', title: 'Light Activity', description: 'Light walking or standing.', icon: require('../assets/walk.png') },
-  { key: 'moderate', title: 'Moderate Active', description: 'Regular jogging or cycling.', icon: require('../assets/training.png') },
-  { key: 'very', title: 'Very Active', description: 'Heavy lifting or training.', icon: require('../assets/weightlifting.png') },
+type FieldKey = keyof ProfileForm | 'hydrationGoal';
+
+type FieldConfig = {
+  key: FieldKey;
+  label: string;
+  subtitle: string;
+  icon: string;
+  type: 'text' | 'choice' | 'number' | 'time' | 'readonly' | 'location';
+  unit?: string;
+  options?: ChoiceOption[];
+  values?: number[];
+};
+
+type ChoiceOption = {
+  value: string;
+  label: string;
+  description?: string;
+  image?: ImageSourcePropType;
+};
+
+type SectionConfig = {
+  title: string;
+  accent: string;
+  icon: string;
+  fields: FieldConfig[];
+};
+
+const AGE_VALUES = Array.from({ length: 83 }, (_, index) => 18 + index);
+const HEIGHT_VALUES = Array.from({ length: 101 }, (_, index) => 110 + index);
+const WEIGHT_VALUES = Array.from({ length: 121 }, (_, index) => 30 + index);
+
+const images = {
+  male: require('../assets/avatar_male_1.png') as ImageSourcePropType,
+  female: require('../assets/avatar_female_1.png') as ImageSourcePropType,
+  sedentary: require('../assets/alone.png') as ImageSourcePropType,
+  light: require('../assets/walk.png') as ImageSourcePropType,
+  moderate: require('../assets/training.png') as ImageSourcePropType,
+  very: require('../assets/weightlifting.png') as ImageSourcePropType,
+  hot: require('../assets/contrast.png') as ImageSourcePropType,
+  temperate: require('../assets/sun.png') as ImageSourcePropType,
+  cold: require('../assets/autumn.png') as ImageSourcePropType,
+};
+
+const avatarSources: Record<string, ImageSourcePropType> = {
+  male_1: require('../assets/avatar_male_1.png') as ImageSourcePropType,
+  male_2: require('../assets/avatar_male_2.png') as ImageSourcePropType,
+  male_3: require('../assets/avatar_male_3.png') as ImageSourcePropType,
+  male_4: require('../assets/avatar_male_4.png') as ImageSourcePropType,
+  male_6: require('../assets/avatar_male_6.png') as ImageSourcePropType,
+  male_7: require('../assets/avatar_male_7.png') as ImageSourcePropType,
+  male_8: require('../assets/avatar_male_8.png') as ImageSourcePropType,
+  male_9: require('../assets/avatar_male_9.png') as ImageSourcePropType,
+  male_10: require('../assets/avatar_male_10.png') as ImageSourcePropType,
+  male_12: require('../assets/avatar_male_12.png') as ImageSourcePropType,
+  male_13: require('../assets/avatar_male_13.png') as ImageSourcePropType,
+  male_14: require('../assets/avatar_male_14.png') as ImageSourcePropType,
+  male_15: require('../assets/avatar_male_15.png') as ImageSourcePropType,
+  female_1: require('../assets/avatar_female_1.png') as ImageSourcePropType,
+  female_2: require('../assets/avatar_female_2.png') as ImageSourcePropType,
+  female_3: require('../assets/avatar_female_3.png') as ImageSourcePropType,
+  female_4: require('../assets/avatar_female_4.png') as ImageSourcePropType,
+  female_5: require('../assets/avatar_female_5.png') as ImageSourcePropType,
+  female_6: require('../assets/avatar_female_6.png') as ImageSourcePropType,
+  female_7: require('../assets/avatar_female_7.png') as ImageSourcePropType,
+  female_8: require('../assets/avatar_female_8.png') as ImageSourcePropType,
+  female_9: require('../assets/avatar_female_9.png') as ImageSourcePropType,
+  female_10: require('../assets/avatar_female_10.png') as ImageSourcePropType,
+  female_11: require('../assets/avatar_female_11.png') as ImageSourcePropType,
+  female_12: require('../assets/avatar_female_12.png') as ImageSourcePropType,
+  female_13: require('../assets/avatar_female_13.png') as ImageSourcePropType,
+};
+
+const getProfileAvatarSource = (avatarId?: string, gender?: string) => {
+  if (avatarId && avatarSources[avatarId]) return avatarSources[avatarId];
+  if (gender === 'Female') return images.female;
+  return images.male;
+};
+
+const genderOptions: ChoiceOption[] = [
+  { value: 'Male', label: 'Male' },
+  { value: 'Female', label: 'Female' },
+  { value: 'Prefer not to say', label: 'Prefer not to say' },
 ];
 
-const CLIMATE_OPTIONS = [
-  { key: 'hot', title: 'Hot', icon: require('../assets/contrast.png') },
-  { key: 'temperate', title: 'Temperate', icon: require('../assets/sun.png') },
-  { key: 'cold', title: 'Cold', icon: require('../assets/autumn.png') },
+const activityOptions: ChoiceOption[] = [
+  { value: 'Low', label: 'Sedentary', description: 'Limited physical activity', image: images.sedentary },
+  { value: 'Light', label: 'Light Activity', description: 'Light walking or standing', image: images.light },
+  { value: 'Medium', label: 'Moderate Active', description: 'Regular jogging or cycling', image: images.moderate },
+  { value: 'High', label: 'Very Active', description: 'Heavy lifting or training', image: images.very },
 ];
 
-const fields = [
-  { key: 'gender', label: 'Gender' },
-  { key: 'age', label: 'Age' },
-  { key: 'weight', label: 'Weight' },
-  { key: 'height', label: 'Height' },
-  { key: 'wakeUpTime', label: 'Wake-up time' },
-  { key: 'sleepTime', label: 'Bed time' },
-  { key: 'activityLevel', label: 'Activity Level' },
-  { key: 'climate', label: 'Climate' },
-  { key: 'hydrationGoal', label: 'Hydration Goal', isReadOnly: true },
+const climateOptions: ChoiceOption[] = [
+  { value: 'Hot', label: 'Hot', description: 'More hydration support', image: images.hot },
+  { value: 'Temperate', label: 'Temperate', description: 'Balanced daily target', image: images.temperate },
+  { value: 'Cold', label: 'Cold', description: 'Steady gentle reminders', image: images.cold },
 ];
-const { width, height } = Dimensions.get('window');
 
-// Responsive values
-const isSmallDevice = width < 350 || height < 650;
-const paddingHorizontal = isSmallDevice ? 10 : Math.max(16, width * 0.05);
-const modalContainerPadding = isSmallDevice ? 12 : Math.max(20, width * 0.06);
-const modalLabelFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.055);
-const modalInputPadding = isSmallDevice ? 8 : Math.max(12, width * 0.035);
-const modalInputRadius = isSmallDevice ? 6 : Math.max(10, width * 0.03);
-const modalOptionFontSize = isSmallDevice ? 14 : Math.max(18, width * 0.05);
-const heightItemFontSize = isSmallDevice ? 18 : Math.max(22, width * 0.065);
-const heightItemPaddingV = isSmallDevice ? 4 : Math.max(8, height * 0.012);
-const okBtnPaddingV = isSmallDevice ? 6 : Math.max(10, height * 0.014);
-const okBtnPaddingH = isSmallDevice ? 12 : Math.max(20, width * 0.06);
-const okBtnRadius = isSmallDevice ? 6 : Math.max(8, width * 0.025);
-const iconSize = isSmallDevice ? 28 : Math.max(40, width * 0.11);
-const iconMarginR = isSmallDevice ? 8 : Math.max(16, width * 0.045);
-const cardPadding = isSmallDevice ? 8 : Math.max(12, width * 0.035);
-const cardRadius = isSmallDevice ? 8 : Math.max(12, width * 0.035);
-const cardTitleFontSize = isSmallDevice ? 13 : Math.max(16, width * 0.045);
-const cardDescFontSize = isSmallDevice ? 10 : Math.max(12, width * 0.035);
-const avatarSize = isSmallDevice ? 60 : Math.max(90, width * 0.25);
-const headerTitleFontSize = isSmallDevice ? 18 : Math.max(22, width * 0.055);
-const detailsTitleFontSize = isSmallDevice ? 16 : Math.max(22, width * 0.05);
-const detailRowPaddingV = isSmallDevice ? 8 : Math.max(14, height * 0.018);
-const labelFontSize = isSmallDevice ? 13 : Math.max(16, width * 0.045);
-const valueTextFontSize = isSmallDevice ? 13 : Math.max(16, width * 0.045);
+const sections: SectionConfig[] = [
+  {
+    title: 'Identity',
+    accent: '#35d9ff',
+    icon: 'account-circle-outline',
+    fields: [
+      { key: 'username', label: 'Username', subtitle: 'Shown across DoraDrink', icon: 'account-edit-outline', type: 'text' },
+      { key: 'gender', label: 'Gender', subtitle: 'Used for goal calculation', icon: 'gender-male-female', type: 'choice', options: genderOptions },
+      { key: 'city', label: 'City', subtitle: 'Local context', icon: 'city-variant-outline', type: 'location' },
+      { key: 'country', label: 'Country', subtitle: 'Profile location', icon: 'map-marker-outline', type: 'location' },
+    ],
+  },
+  {
+    title: 'Body Metrics',
+    accent: '#b65cff',
+    icon: 'human-male-height',
+    fields: [
+      { key: 'age', label: 'Age', subtitle: 'Personalized daily goal', icon: 'calendar-account-outline', type: 'number', values: AGE_VALUES, unit: 'years' },
+      { key: 'height', label: 'Height', subtitle: 'Body profile detail', icon: 'human-male-height-variant', type: 'number', values: HEIGHT_VALUES, unit: 'cm' },
+      { key: 'weight', label: 'Weight', subtitle: 'Goal calculation input', icon: 'weight-kilogram', type: 'number', values: WEIGHT_VALUES, unit: 'kg' },
+    ],
+  },
+  {
+    title: 'Daily Routine',
+    accent: '#13d7d2',
+    icon: 'clock-outline',
+    fields: [
+      { key: 'activityLevel', label: 'Activity Level', subtitle: 'Adjusts hydration needs', icon: 'run-fast', type: 'choice', options: activityOptions },
+      { key: 'climate', label: 'Climate', subtitle: 'Weather hydration profile', icon: 'weather-partly-cloudy', type: 'choice', options: climateOptions },
+    ],
+  },
+  {
+    title: 'Hydration Plan',
+    accent: '#61ff91',
+    icon: 'water-check-outline',
+    fields: [
+      { key: 'hydrationGoal', label: 'Hydration Goal', subtitle: 'Updates from your profile data', icon: 'target', type: 'readonly' },
+    ],
+  },
+];
+
+const defaultProfile: ProfileForm = {
+  username: 'User',
+  avatar: 'male_1',
+  gender: 'Male',
+  age: 25,
+  height: 170,
+  weight: 65,
+  wakeUpTime: '06:30',
+  sleepTime: '23:00',
+  activityLevel: 'Medium',
+  climate: 'Temperate',
+  city: 'Ahmedabad',
+  country: 'India',
+  countryCode: 'IN',
+};
 
 const PersonalInformationScreen = ({ navigation }) => {
-  const { theme } = useThemeContext();
-  const dark = theme === 'dark';
-
-  const [formData, setFormData] = useState<any>({});
-  const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [currentField, setCurrentField] = useState<any>(null);
+  const tabTheme = useMainTabTheme();
+  const [formData, setFormData] = useState<ProfileForm>(defaultProfile);
+  const [hydrationGoal, setHydrationGoal] = useState(2000);
+  const [currentField, setCurrentField] = useState<FieldConfig | null>(null);
   const [inputValue, setInputValue] = useState('');
-  const [showTimePicker, setShowTimePicker] = useState(false);
-  const [selectedAge, setSelectedAge] = useState(25);
-  const [selectedHeight, setSelectedHeight] = useState(160);
-  const [selectedWeight, setSelectedWeight] = useState(60);
+  const [selectedNumber, setSelectedNumber] = useState(25);
   const [selectedTime, setSelectedTime] = useState(new Date());
-  const [hydrationGoal, setHydrationGoal] = useState<number | null>(null); // New state variable for hydration goal
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [locationModalVisible, setLocationModalVisible] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
-      const profile = await getUserProfile();
-      if (profile) {
-        setFormData(profile);
-        setSelectedAge(profile.age || 25);
-        setSelectedHeight(profile.height || 160);
-        setSelectedWeight(profile.weight || 60);
+      try {
+        const [profile, storedGoal] = await Promise.all([
+          getUserProfile(),
+          AsyncStorage.getItem('hydrationGoal'),
+        ]);
+
+        if (profile) {
+          setFormData({ ...defaultProfile, ...profile });
+        }
+
+        if (storedGoal) {
+          const parsedGoal = Number(JSON.parse(storedGoal));
+          if (!Number.isNaN(parsedGoal)) {
+            setHydrationGoal(parsedGoal);
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load personal information:', error);
       }
-      // Load hydration goal from storage
-      const storedGoal = await AsyncStorage.getItem('hydrationGoal');
-      if (storedGoal) {
-        setHydrationGoal(parseInt(storedGoal));
-      }
-      setLoading(false);
     };
+
     loadData();
   }, []);
 
-  const refreshGoalAndReminders = async (profile, updatedField?: string) => {
-    const choice = await AsyncStorage.getItem('hydrationGoalChoice');
+  const avatarSource = useMemo(
+    () => getProfileAvatarSource(formData.avatar, formData.gender),
+    [formData.avatar, formData.gender],
+  );
 
-    if (choice === 'custom') {
-      // Keep user’s custom goal fixed
-      const storedGoal = await AsyncStorage.getItem('hydrationGoal');
-      if (storedGoal) {
-        setHydrationGoal(parseInt(storedGoal));
-      }
-
-      // 🔹 But regenerate reminders if sleep/wake time changed
-      if (updatedField === 'wakeUpTime' || updatedField === 'sleepTime') {
-        const reminderCount =
-          parseInt(storedGoal || '0') > 1000 ? 5 : 3;
-
-        const reminders = generateReminders(
-          profile.wakeUpTime,
-          profile.sleepTime,
-          reminderCount
-        );
-
-        await saveReminders(reminders);
-        await scheduleRemindersIfGoalNotReached();
-      }
+  const openEditor = (field: FieldConfig) => {
+    if (field.type === 'readonly') {
+      navigation.navigate('ProfileHydrationGoal');
       return;
     }
 
-    // 🔹 Normal flow for min/max
-    const { min, max } = generateWaterGoal(profile);
-    const selectedGoal = choice === 'max' ? max : min;
-
-    await AsyncStorage.setItem('hydrationGoal', selectedGoal.toString());
-    setHydrationGoal(selectedGoal);
-
-    const reminderCount = choice === 'max' ? 8 : 5;
-    const reminders = generateReminders(
-      profile.wakeUpTime,
-      profile.sleepTime,
-      reminderCount
-    );
-
-    await saveReminders(reminders);
-    await scheduleRemindersIfGoalNotReached();
-  };
-
-
-
-
-
-  const openModal = (field) => {
-    if (field.key === 'wakeUpTime' || field.key === 'sleepTime') {
-      setCurrentField(field);
-      setSelectedTime(
-        formData[field.key]
-          ? new Date(`1970-01-01T${formData[field.key]}`)
-          : new Date()
-      );
-      setShowTimePicker(true);
+    if (field.type === 'location') {
+      setLocationModalVisible(true);
       return;
     }
 
     setCurrentField(field);
-    setInputValue(formData[field.key]?.toString() || '');
-    setModalVisible(true);
+    const value = formData[field.key as keyof ProfileForm];
 
-    if (field.key === 'height') setSelectedHeight(Number(formData.height || 160));
-    if (field.key === 'age') setSelectedAge(Number(formData.age || 25));
-    if (field.key === 'weight') setSelectedWeight(Number(formData.weight || 60));
-  };
-
-  const handleSave = async () => {
-    let updatedValue = inputValue;
-    if (currentField.key === 'height') updatedValue = selectedHeight;
-    if (currentField.key === 'age') updatedValue = selectedAge;
-    if (currentField.key === 'weight') updatedValue = selectedWeight;
-
-    const updatedProfile = await updateUserProfile({ [currentField.key]: updatedValue });
-    setFormData(updatedProfile);
-
-    if (['age', 'weight', 'height'].includes(currentField.key)) {
-      await refreshGoalAndReminders(updatedProfile, currentField.key);
+    if (field.type === 'time') {
+      setSelectedTime(timeToDate(String(value || '06:30')));
+      setShowTimePicker(true);
+      return;
     }
 
-    setModalVisible(false);
-    setShowTimePicker(false);
-  };
-
-  const handleSaveTime = async (date) => {
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    const time24 = `${hours}:${minutes}`;
-
-    const updatedField = currentField.key;
-    const updatedData = {
-      ...formData,
-      [updatedField]: time24,
-    };
-
-    await updateUserProfile({ [updatedField]: time24 });
-    setFormData(updatedData);
-
-    if (['wakeUpTime', 'sleepTime'].includes(updatedField)) {
-      await refreshGoalAndReminders(updatedData, updatedField);
+    if (field.type === 'number') {
+      setSelectedNumber(Number(value || field.values?.[0] || 0));
+    } else {
+      setInputValue(value?.toString() || '');
     }
+
+    setEditModalVisible(true);
   };
 
-  const renderFieldValue = (key) => {
-    const value = formData[key];
-    if (key === 'hydrationGoal') return `${hydrationGoal} ml`;
-    if (key === 'height') return `${value} cm`;
-    if (key === 'weight') return `${value} kg`;
-    if (key === 'wakeUpTime' || key === 'sleepTime') {
-      if (!value) return '—';
-      return new Date(`1970-01-01T${value}`).toLocaleTimeString([], {
-        hour: '2-digit', minute: '2-digit', hour12: true,
-      });
-    }
-    return value || '—';
+  const saveField = async () => {
+    if (!currentField) return;
+
+    const nextValue = currentField.type === 'number' ? selectedNumber : inputValue.trim();
+    const updatedProfile = await updateUserProfile({ [currentField.key]: nextValue } as any);
+    const nextProfile = { ...defaultProfile, ...updatedProfile } as ProfileForm;
+    setFormData(nextProfile);
+
+    setEditModalVisible(false);
   };
 
-  const renderModalContent = () => {
-    switch (currentField?.key) {
-      case 'gender':
-        return ['Male', 'Female'].map((val) => (
-          <TouchableOpacity key={val} onPress={() => setInputValue(val)}>
-            <Text style={[styles.modalOption, inputValue === val && styles.selectedOption]}>{val}</Text>
-          </TouchableOpacity>
-        ));
-      case 'age':
-        return (
-          <FlatList
-            data={AGE_YEARS}
-            keyExtractor={(item) => item.toString()}
-            contentContainerStyle={{ alignItems: 'center' }}
-            style={{ maxHeight: 300 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => setSelectedAge(item)}>
-                <Text style={[styles.heightItem, item === selectedAge && styles.selectedHeight]}>{item} years</Text>
-              </TouchableOpacity>
-            )}
-          />
-        );
-      case 'weight':
-        return (
-          <FlatList
-            data={WEIGHT_KG}
-            keyExtractor={(item) => item.toString()}
-            contentContainerStyle={{ alignItems: 'center' }}
-            style={{ maxHeight: 300 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => setSelectedWeight(item)}>
-                <Text style={[styles.heightItem, item === selectedWeight && styles.selectedHeight]}>{item} kg</Text>
-              </TouchableOpacity>
-            )}
-          />
-        );
-      case 'height':
-        return (
-          <FlatList
-            data={HEIGHT_CM}
-            keyExtractor={(item) => item.toString()}
-            contentContainerStyle={{ alignItems: 'center' }}
-            style={{ maxHeight: 300 }}
-            renderItem={({ item }) => (
-              <TouchableOpacity onPress={() => setSelectedHeight(item)}>
-                <Text style={[styles.heightItem, item === selectedHeight && styles.selectedHeight]}>{item} cm</Text>
-              </TouchableOpacity>
-            )}
-          />
-        );
-      case 'activityLevel':
-        return ACTIVITY_OPTIONS.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.card, inputValue === item.key && styles.cardSelected]}
-            onPress={() => setInputValue(item.key)}
-          >
-            <Image source={item.icon} style={styles.icon} />
-            <View>
-              <Text style={styles.cardTitle}>{item.title}</Text>
-              <Text style={styles.cardDescription}>{item.description}</Text>
-            </View>
-          </TouchableOpacity>
-        ));
-      case 'climate':
-        return CLIMATE_OPTIONS.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.card, inputValue === item.key && styles.cardSelected]}
-            onPress={() => setInputValue(item.key)}
-          >
-            <Image source={item.icon} style={styles.icon} />
-            <Text style={styles.cardTitle}>{item.title}</Text>
-          </TouchableOpacity>
-        ));
-      default:
-        return (
-          <TextInput
-            style={styles.modalInput}
-            value={inputValue}
-            onChangeText={setInputValue}
-          />
-        );
-    }
+  const saveTime = async (date: Date) => {
+    if (!currentField) return;
+
+    const time24 = dateToHHMM(date);
+    const updatedProfile = await updateUserProfile({ [currentField.key]: time24 } as any);
+    const nextProfile = { ...defaultProfile, ...updatedProfile } as ProfileForm;
+    setFormData(nextProfile);
   };
 
-  const avatarSource =
-    (formData.gender || '').toLowerCase() === 'male'
-      ? require('../assets/male.png')
-      : require('../assets/female.png');
+  const saveLocation = async (updates: Pick<ProfileForm, 'country' | 'countryCode' | 'city'>) => {
+    const updatedProfile = await updateUserProfile(updates as any);
+    const nextProfile = { ...defaultProfile, ...updatedProfile, ...updates } as ProfileForm;
+    setFormData(nextProfile);
+  };
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: dark ? '#000' : '#fff' }]}>
-      <View style={styles.headerRow}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Feather name="arrow-left" size={24} color={dark ? '#fff' : '#000'} />
-        </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: dark ? '#fff' : '#000' }]}>Profile</Text>
-      </View>
+    <LinearGradient colors={tabTheme.background} style={styles.background}>
+      <SafeAreaView style={styles.safeArea}>
+        <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <Header onBack={() => navigation.goBack()} theme={tabTheme} />
+          <ProfileCard avatarSource={avatarSource} formData={formData} hydrationGoal={hydrationGoal} />
+          {sections.map(section => (
+            <InfoSection key={section.title} section={section} formData={formData} hydrationGoal={hydrationGoal} onFieldPress={openEditor} />
+          ))}
+        </ScrollView>
 
-      <View style={styles.profileContainer}>
-        <Image source={avatarSource} style={styles.avatar} />
-      </View>
+        <EditModal
+          visible={editModalVisible}
+          field={currentField}
+          value={inputValue}
+          selectedNumber={selectedNumber}
+          onChangeText={setInputValue}
+          onSelectNumber={setSelectedNumber}
+          onClose={() => setEditModalVisible(false)}
+          onSave={saveField}
+        />
 
-      <View style={styles.detailsCard}>
-        <Text style={[styles.detailsTitle, { color: dark ? '#1e90ff' : '#007AFF' }]}>Profile Details</Text>
-        {fields.map((field) => (
-          <TouchableOpacity
-            key={field.key}
-            style={[styles.detailRow, { borderBottomColor: dark ? '#222' : '#f0f0f0' }]}
-            onPress={() => openModal(field)}
-            disabled={field.isReadOnly}
-          >
-            <Text style={[styles.label, { color: dark ? '#aaa' : '#777' }]}>• {field.label}</Text>
-            <Text style={[styles.valueText, { color: dark ? '#1e90ff' : '#1d8ae0' }]}>{renderFieldValue(field.key)}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
+        <LocationModal
+          visible={locationModalVisible}
+          formData={formData}
+          onClose={() => setLocationModalVisible(false)}
+          onSave={saveLocation}
+        />
 
-
-      <Modal visible={modalVisible} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={[styles.modalContainer, { backgroundColor: dark ? '#fff' : '#fff' }]}>
-            <Text style={[styles.modalLabel, { color: dark ? '#000' : '#000' }]}>Edit {currentField?.label}</Text>
-            {renderModalContent()}
-            <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.okButton} onPress={() => setModalVisible(false)}>
-                <Text style={{ color: '#fff' }}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleSave} style={styles.okButton}>
-                <Text style={styles.okText}>Save</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Custom Modal for iOS Time Picker */}
-      {showTimePicker && Platform.OS === 'ios' && (
-        <Modal
-          visible={showTimePicker}
-          transparent={true}
-          animationType="fade"
-          onRequestClose={() => setShowTimePicker(false)}
-        >
-          <View style={styles.timePickerOverlay}>
-            <View style={styles.timePickerContainer}>
-              <Text style={[styles.modalLabel, { color: dark ? '#000' : '#000' }]}>
-                Edit {currentField?.label}
-              </Text>
-              <DateTimePicker
-                mode="time"
-                value={selectedTime}
-                onChange={(event, newDate) => {
-                  if (newDate) {
-                    setSelectedTime(newDate);
-                  }
-                }}
-                is24Hour={true}
-                display="spinner"
-                style={styles.timePicker}
-                textColor="#000"
-              />
-              <View style={styles.modalActions}>
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setShowTimePicker(false)}
-                >
-                  <Text style={styles.buttonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.saveButton}
-                  onPress={async () => {
-                    await handleSaveTime(selectedTime); // Pass the selectedTime to the function
-                    setShowTimePicker(false); // Close the modal after saving
-                  }}
-                >
-                  <Text style={styles.buttonText}>Save</Text>
-                </TouchableOpacity>
+        {showTimePicker && Platform.OS === 'ios' ? (
+          <Modal visible transparent animationType="fade" onRequestClose={() => setShowTimePicker(false)}>
+            <View style={styles.modalOverlay}>
+              <View style={styles.modalFrame}>
+                <GradientFrame colors={['#081b3d', '#13091f']} style={[styles.modalSurface, styles.timeModal]}>
+                  <Text style={styles.modalTitle}>Edit {currentField?.label}</Text>
+                  <DateTimePicker
+                    mode="time"
+                    value={selectedTime}
+                    onChange={(event, date) => {
+                      if (date) setSelectedTime(date);
+                    }}
+                    display="spinner"
+                    textColor="#ffffff"
+                  />
+                  <View style={styles.modalActions}>
+                    <TouchableOpacity activeOpacity={0.85} onPress={() => setShowTimePicker(false)} style={styles.cancelButton}>
+                      <Text style={styles.cancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      activeOpacity={0.85}
+                      onPress={async () => {
+                        await saveTime(selectedTime);
+                        setShowTimePicker(false);
+                      }}
+                      style={styles.saveButton}
+                    >
+                      <Text style={styles.saveText}>Save</Text>
+                    </TouchableOpacity>
+                  </View>
+                </GradientFrame>
               </View>
             </View>
-          </View>
-        </Modal>
-      )}
+          </Modal>
+        ) : null}
 
-
-      {/* Android DateTimePicker */}
-      {showTimePicker && Platform.OS === 'android' && (
-        <DateTimePicker
-          mode="time"
-          value={selectedTime}
-          onChange={async (event, newDate) => {
-            setShowTimePicker(false); // Close the picker immediately
-            if (newDate) {
-              setSelectedTime(newDate); // Update the state with the new date
-              await handleSaveTime(newDate); // Call the save function with the new date
-            }
-          }}
-          is24Hour={true}
-          display="spinner"
-        />
-      )}
-    </SafeAreaView>
+        {showTimePicker && Platform.OS === 'android' ? (
+          <DateTimePicker
+            mode="time"
+            value={selectedTime}
+            onChange={async (event, date) => {
+              setShowTimePicker(false);
+              if (date) {
+                setSelectedTime(date);
+                await saveTime(date);
+              }
+            }}
+            display="spinner"
+          />
+        ) : null}
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
-export default PersonalInformationScreen;
+const Header = ({ onBack, theme }: { onBack: () => void; theme: MainTabTheme }) => (
+  <View style={styles.header}>
+    <TouchableOpacity activeOpacity={0.85} onPress={onBack} style={[styles.headerButton, { backgroundColor: theme.headerButton, borderColor: theme.border, shadowColor: theme.shadow }]}>
+      <Feather name="arrow-left" size={25} color={theme.icon} />
+    </TouchableOpacity>
+    <View style={styles.headerCenter}>
+      <Text style={[styles.headerTitle, { color: theme.text }]}>Personal Info</Text>
+      <Text style={[styles.headerSubtitle, { color: theme.mutedText }]}>Edit your hydration profile</Text>
+    </View>
+    <View style={[styles.headerButton, { backgroundColor: theme.headerButton, borderColor: theme.border }]}>
+      <Feather name="user-check" size={22} color={theme.icon} />
+    </View>
+  </View>
+);
+
+const ProfileCard = ({
+  avatarSource,
+  formData,
+  hydrationGoal,
+}: {
+  avatarSource: ImageSourcePropType;
+  formData: ProfileForm;
+  hydrationGoal: number;
+}) => (
+  <GradientFrame colors={['rgba(8,47,91,0.96)', 'rgba(25,12,67,0.96)']} style={styles.profileCard}>
+    <GradientFrame colors={['#65ecff', '#155dff']} style={styles.avatarFrame}>
+      <Image source={avatarSource} style={styles.avatar} resizeMode="cover" />
+    </GradientFrame>
+    <View style={styles.profileCopy}>
+      <Text style={styles.profileName}>{formData.username}</Text>
+      <Text style={styles.profileLocation}>{[formData.city, formData.country].filter(Boolean).join(', ') || 'Ahmedabad, India'}</Text>
+      <View style={styles.profileMetaRow}>
+        <View style={styles.metaPill}>
+          <MaterialCommunityIcons name="water" size={17} color="#35d9ff" />
+          <Text style={styles.metaPillText}>{hydrationGoal} ml/day</Text>
+        </View>
+        <View style={styles.metaPill}>
+          <MaterialCommunityIcons name="run-fast" size={17} color="#b65cff" />
+          <Text style={styles.metaPillText}>{formatChoiceLabel(formData.activityLevel, activityOptions)}</Text>
+        </View>
+      </View>
+    </View>
+  </GradientFrame>
+);
+
+const InfoSection = ({
+  section,
+  formData,
+  hydrationGoal,
+  onFieldPress,
+}: {
+  section: SectionConfig;
+  formData: ProfileForm;
+  hydrationGoal: number;
+  onFieldPress: (field: FieldConfig) => void;
+}) => (
+  <GradientFrame colors={['rgba(7,28,62,0.98)', 'rgba(4,13,32,0.98)']} style={styles.sectionCard}>
+    <View style={styles.sectionHeader}>
+      <View style={[styles.sectionIcon, { backgroundColor: `${section.accent}20` }]}>
+        <MaterialCommunityIcons name={section.icon} size={24} color={section.accent} />
+      </View>
+      <Text style={styles.sectionTitle}>{section.title}</Text>
+    </View>
+    {section.fields.map(field => (
+      <TouchableOpacity key={field.key} activeOpacity={0.86} onPress={() => onFieldPress(field)} style={styles.fieldRow}>
+        <View style={styles.fieldLeft}>
+          <View style={styles.fieldIcon}>
+            <MaterialCommunityIcons name={field.icon} size={20} color={section.accent} />
+          </View>
+          <View style={styles.fieldCopy}>
+            <Text style={styles.fieldLabel}>{field.label}</Text>
+            <Text style={styles.fieldSubtitle}>{field.subtitle}</Text>
+          </View>
+        </View>
+        <View style={styles.fieldRight}>
+          <Text style={[styles.fieldValue, { color: section.accent }]} numberOfLines={1}>
+            {renderFieldValue(field, formData, hydrationGoal)}
+          </Text>
+          <Feather name={field.type === 'readonly' ? 'external-link' : 'edit-2'} size={16} color="#8fa1c8" />
+        </View>
+      </TouchableOpacity>
+    ))}
+  </GradientFrame>
+);
+
+const EditModal = ({
+  visible,
+  field,
+  value,
+  selectedNumber,
+  onChangeText,
+  onSelectNumber,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  field: FieldConfig | null;
+  value: string;
+  selectedNumber: number;
+  onChangeText: (value: string) => void;
+  onSelectNumber: (value: number) => void;
+  onClose: () => void;
+  onSave: () => void;
+}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+    <View style={styles.modalOverlay}>
+      <View style={[styles.modalFrame, styles.editModalFrame]}>
+        <GradientFrame colors={['#081b3d', '#13091f']} style={[styles.modalSurface, styles.modalCard]}>
+          <Text style={styles.modalTitle}>Edit {field?.label}</Text>
+          <Text style={styles.modalSubtitle}>{field?.subtitle}</Text>
+          {renderModalEditor(field, value, selectedNumber, onChangeText, onSelectNumber)}
+          <View style={styles.modalActions}>
+            <TouchableOpacity activeOpacity={0.85} onPress={onClose} style={styles.cancelButton}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.85} onPress={onSave} style={styles.saveButton}>
+              <Text style={styles.saveText}>Save</Text>
+            </TouchableOpacity>
+          </View>
+        </GradientFrame>
+      </View>
+    </View>
+  </Modal>
+);
+
+const LocationModal = ({
+  visible,
+  formData,
+  onClose,
+  onSave,
+}: {
+  visible: boolean;
+  formData: ProfileForm;
+  onClose: () => void;
+  onSave: (updates: Pick<ProfileForm, 'country' | 'countryCode' | 'city'>) => Promise<void>;
+}) => {
+  const [countryPickerVisible, setCountryPickerVisible] = useState(false);
+  const [citySearch, setCitySearch] = useState('');
+  const [draftLocation, setDraftLocation] = useState({
+    country: formData.country || 'India',
+    countryCode: formData.countryCode || 'IN',
+    city: formData.city || 'Ahmedabad, Gujarat',
+  });
+  const countryCode = draftLocation.countryCode || 'IN';
+
+  useEffect(() => {
+    if (!visible) return;
+
+    setDraftLocation({
+      country: formData.country || 'India',
+      countryCode: formData.countryCode || 'IN',
+      city: formData.city || 'Ahmedabad, Gujarat',
+    });
+    setCitySearch('');
+  }, [formData.city, formData.country, formData.countryCode, visible]);
+
+  const cities = useMemo(() => {
+    const states = State.getStatesOfCountry(countryCode);
+    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
+      acc[state.isoCode] = state.name;
+      return acc;
+    }, {});
+
+    return (City.getCitiesOfCountry(countryCode) || [])
+      .map(city => ({
+        key: `${city.name}-${city.stateCode}`,
+        label: stateNameByCode[city.stateCode]
+          ? `${city.name}, ${stateNameByCode[city.stateCode]}`
+          : city.name,
+      }))
+      .filter((city, index, list) => list.findIndex(item => item.label === city.label) === index)
+      .slice(0, 500);
+  }, [countryCode]);
+
+  const filteredCities = useMemo(() => {
+    const query = citySearch.trim().toLowerCase();
+
+    if (!query) return cities;
+
+    return cities.filter(city => city.label.toLowerCase().includes(query));
+  }, [cities, citySearch]);
+
+  const handleCountrySelect = (country: Country) => {
+    const nextCountryCode = country.cca2;
+    const states = State.getStatesOfCountry(nextCountryCode);
+    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
+      acc[state.isoCode] = state.name;
+      return acc;
+    }, {});
+    const firstCity = City.getCitiesOfCountry(nextCountryCode)?.[0];
+    const nextCity = firstCity
+      ? stateNameByCode[firstCity.stateCode]
+        ? `${firstCity.name}, ${stateNameByCode[firstCity.stateCode]}`
+        : firstCity.name
+      : '';
+    const countryName = typeof country.name === 'string'
+      ? country.name
+      : country.name.common || nextCountryCode;
+
+    setDraftLocation({
+      country: countryName,
+      countryCode: nextCountryCode,
+      city: nextCity,
+    });
+    setCitySearch('');
+    setCountryPickerVisible(false);
+  };
+
+  const handleSave = async () => {
+    await onSave(draftLocation);
+    onClose();
+  };
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={styles.modalOverlay}>
+        <View style={[styles.modalFrame, styles.locationModalFrame]}>
+          <GradientFrame colors={['#081b3d', '#13091f']} style={[styles.modalSurface, styles.locationModal]}>
+            <View style={styles.locationHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Edit Location</Text>
+                <Text style={styles.modalSubtitle}>Choose country and city like onboarding.</Text>
+              </View>
+              <TouchableOpacity activeOpacity={0.85} onPress={onClose} style={styles.locationClose}>
+                <Feather name="x" size={22} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
+
+            <CountryPicker
+              countryCode={countryCode}
+              visible={countryPickerVisible}
+              withFilter
+              withFlag
+              withEmoji
+              withFlagButton={false}
+              withCountryNameButton={false}
+              withCallingCode={false}
+              onSelect={handleCountrySelect}
+              onClose={() => setCountryPickerVisible(false)}
+            />
+
+          <TouchableOpacity activeOpacity={0.86} onPress={() => setCountryPickerVisible(true)} style={styles.locationSelectPanel}>
+            <View style={styles.locationSelectLeft}>
+              <View style={styles.locationIcon}>
+                <Feather name="globe" size={19} color="#35d9ff" />
+              </View>
+              <View>
+                <Text style={styles.locationSelectLabel}>Country</Text>
+                <Text style={styles.locationSelectValue}>{draftLocation.country}</Text>
+              </View>
+            </View>
+            <Flag countryCode={countryCode} withEmoji withFlagButton flagSize={28} />
+          </TouchableOpacity>
+
+          <View style={styles.citySearchBox}>
+            <Feather name="search" size={20} color="#35d9ff" />
+            <TextInput
+              value={citySearch}
+              onChangeText={setCitySearch}
+              placeholder="Search city or state"
+              placeholderTextColor="#7f91c6"
+              selectionColor="#35d9ff"
+              style={styles.citySearchInput}
+            />
+            {citySearch ? (
+              <TouchableOpacity onPress={() => setCitySearch('')}>
+                <Feather name="x-circle" size={20} color="#7f91c6" />
+              </TouchableOpacity>
+            ) : null}
+          </View>
+
+          <FlatList
+            data={filteredCities}
+            keyExtractor={item => item.key}
+            style={styles.cityList}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) => {
+              const selected = draftLocation.city === item.label;
+
+              return (
+                <TouchableOpacity
+                  activeOpacity={0.84}
+                  onPress={() => setDraftLocation(current => ({ ...current, city: item.label }))}
+                  style={[styles.cityOption, selected && styles.cityOptionSelected]}
+                >
+                  <View style={styles.cityOptionIcon}>
+                    <MaterialCommunityIcons name="city-variant-outline" size={19} color="#35d9ff" />
+                  </View>
+                  <Text style={styles.cityOptionText}>{item.label}</Text>
+                  {selected ? <Feather name="check" size={20} color="#35d9ff" /> : null}
+                </TouchableOpacity>
+              );
+            }}
+            ListEmptyComponent={<Text style={styles.cityEmptyText}>No city found for this search.</Text>}
+          />
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity activeOpacity={0.85} onPress={onClose} style={styles.cancelButton}>
+                <Text style={styles.cancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity activeOpacity={0.85} onPress={handleSave} style={styles.saveButton}>
+                <Text style={styles.saveText}>Save Location</Text>
+              </TouchableOpacity>
+            </View>
+          </GradientFrame>
+        </View>
+      </View>
+    </Modal>
+  );
+};
+
+const renderModalEditor = (
+  field: FieldConfig | null,
+  value: string,
+  selectedNumber: number,
+  onChangeText: (value: string) => void,
+  onSelectNumber: (value: number) => void,
+) => {
+  if (!field) return null;
+
+  if (field.type === 'number') {
+    return (
+      <FlatList
+        data={field.values || []}
+        keyExtractor={item => String(item)}
+        style={styles.numberList}
+        contentContainerStyle={styles.numberListContent}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => {
+          const selected = selectedNumber === item;
+          return (
+            <TouchableOpacity activeOpacity={0.8} onPress={() => onSelectNumber(item)} style={[styles.numberOption, selected && styles.numberOptionSelected]}>
+              <Text style={[styles.numberText, selected && styles.numberTextSelected]}>{item} {field.unit}</Text>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    );
+  }
+
+  if (field.type === 'choice') {
+    return (
+      <View style={styles.choiceList}>
+        {(field.options || []).map(option => {
+          const selected = value === option.value;
+          return (
+            <TouchableOpacity key={option.value} activeOpacity={0.84} onPress={() => onChangeText(option.value)} style={[styles.choiceOption, selected && styles.choiceOptionSelected]}>
+              {option.image ? <Image source={option.image} style={styles.choiceImage} resizeMode="contain" /> : null}
+              <View style={styles.choiceCopy}>
+                <Text style={styles.choiceTitle}>{option.label}</Text>
+                {option.description ? <Text style={styles.choiceDescription}>{option.description}</Text> : null}
+              </View>
+              <View style={[styles.choiceRadio, selected && styles.choiceRadioSelected]}>
+                {selected ? <Feather name="check" size={14} color="#ffffff" /> : null}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    );
+  }
+
+  return (
+    <TextInput
+      value={value}
+      onChangeText={onChangeText}
+      placeholder={`Enter ${field.label.toLowerCase()}`}
+      placeholderTextColor="#7585aa"
+      selectionColor="#35d9ff"
+      style={styles.textInput}
+    />
+  );
+};
+
+const renderFieldValue = (field: FieldConfig, formData: ProfileForm, hydrationGoal: number) => {
+  if (field.key === 'hydrationGoal') return `${hydrationGoal} ml`;
+
+  const value = formData[field.key as keyof ProfileForm];
+  if (field.type === 'number') return `${value || '—'} ${field.unit}`;
+  if (field.type === 'time') return formatTime12(String(value || ''));
+  if (field.key === 'activityLevel') return formatChoiceLabel(value, activityOptions);
+  if (field.key === 'climate') return formatChoiceLabel(value, climateOptions);
+  return value?.toString() || '—';
+};
+
+const formatChoiceLabel = (value: unknown, options: ChoiceOption[]) => (
+  options.find(option => option.value === value)?.label || value?.toString() || '—'
+);
+
+const dateToHHMM = (date: Date) => {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+};
+
+const timeToDate = (time: string) => {
+  const [hours = '6', minutes = '30'] = time.split(':');
+  const date = new Date();
+  date.setHours(Number(hours), Number(minutes), 0, 0);
+  return date;
+};
+
+const formatTime12 = (time: string) => {
+  if (!time) return '—';
+  const [hourText = '0', minuteText = '00'] = time.split(':');
+  const hour = Number(hourText);
+  const hour12 = hour % 12 || 12;
+  return `${String(hour12).padStart(2, '0')}:${minuteText} ${hour >= 12 ? 'PM' : 'AM'}`;
+};
+
+const GradientFrame = ({
+  children,
+  colors,
+  style,
+}: {
+  children: React.ReactNode;
+  colors: string[];
+  style?: StyleProp<ViewStyle>;
+}) => (
+  <View style={[styles.gradientFrame, style]}>
+    <LinearGradient colors={colors} style={styles.gradientBackground} />
+    {children}
+  </View>
+);
 
 const styles = StyleSheet.create({
-  container: { flex: 1, paddingHorizontal },
-  headerRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 20,
+  background: {
+    flex: 1,
+  },
+  safeArea: {
+    flex: 1,
+  },
+  content: {
+    paddingBottom: 36,
+    paddingHorizontal: 14,
+  },
+  gradientFrame: {
+    backgroundColor: 'rgba(4,14,33,0.98)',
+    overflow: 'hidden',
     position: 'relative',
   },
-  backButton: { position: 'absolute', left: 0 },
-  headerTitle: { fontSize: headerTitleFontSize, fontWeight: 'bold' },
-  profileContainer: { alignItems: 'center', marginBottom: 40 },
-  avatar: { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 },
-  detailsCard: { padding: 16 },
-  detailsTitle: { fontSize: detailsTitleFontSize, fontWeight: 'bold', marginBottom: 16 },
-  detailRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  gradientBackground: {
+    ...StyleSheet.absoluteFillObject,
+  },
+  header: {
     alignItems: 'center',
-    paddingVertical: detailRowPaddingV,
-    borderBottomWidth: 1,
+    flexDirection: 'row',
+    paddingBottom: 22,
+    paddingTop: 12,
   },
-  label: { fontSize: labelFontSize },
-  valueText: { fontSize: valueTextFontSize },
-  modalOverlay: { flex: 1, backgroundColor: '#00000066', justifyContent: 'center', alignItems: 'center' },
-  modalContainer: { width: '85%', borderRadius: 14, padding: modalContainerPadding },
-  modalLabel: { fontSize: modalLabelFontSize, fontWeight: '600', marginBottom: 16 },
-  modalInput: {
-    padding: modalInputPadding,
+  headerButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(8,24,55,0.86)',
+    borderColor: '#315f9f',
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: modalInputRadius,
-    textAlign: 'center',
-    marginBottom: 20,
+    height: 44,
+    justifyContent: 'center',
+    shadowColor: '#1679ff',
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    width: 44,
   },
-  modalOption: { fontSize: modalOptionFontSize, padding: 12, textAlign: 'center' },
-  selectedOption: { color: '#007AFF', fontWeight: 'bold' },
-  heightItem: { fontSize: heightItemFontSize, paddingVertical: heightItemPaddingV },
-  selectedHeight: { fontWeight: 'bold', color: '#007AFF' },
-  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 10 },
-  okButton: {
-    backgroundColor: '#007AFF',
-    paddingVertical: okBtnPaddingV,
-    paddingHorizontal: okBtnPaddingH,
-    borderRadius: okBtnRadius,
+  headerCenter: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  headerTitle: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '600',
+    lineHeight: 32,
+  },
+  headerSubtitle: {
+    color: '#b7bdd7',
+    fontSize: 12,
+    marginTop: 2,
+  },
+  profileCard: {
+    alignItems: 'center',
+    borderColor: '#315f9f',
+    borderRadius: 20,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 14,
+    minHeight: 126,
+    padding: 14,
+  },
+  avatarFrame: {
+    alignItems: 'center',
+    borderRadius: 42,
+    height: 84,
+    justifyContent: 'center',
+    width: 84,
+  },
+  avatar: {
+    borderRadius: 38,
+    height: 76,
+    width: 76,
+  },
+  profileCopy: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  profileName: {
+    color: '#ffffff',
+    fontSize: 21,
+    fontWeight: '900',
+  },
+  profileLocation: {
+    color: '#c4cbe1',
+    fontSize: 12,
+    marginTop: 5,
+  },
+  profileMetaRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 12,
+  },
+  metaPill: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(8,27,62,0.9)',
+    borderColor: '#24436e',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 30,
+    paddingHorizontal: 9,
+  },
+  metaPillText: {
+    color: '#dce8ff',
+    fontSize: 11,
+    fontWeight: '800',
+    marginLeft: 5,
+  },
+  sectionCard: {
+    borderColor: '#203f70',
+    borderRadius: 20,
+    borderWidth: 1,
+    marginBottom: 14,
+    paddingHorizontal: 12,
+    paddingTop: 14,
+  },
+  sectionHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  sectionIcon: {
+    alignItems: 'center',
+    borderRadius: 15,
+    height: 40,
+    justifyContent: 'center',
+    marginRight: 10,
+    width: 40,
+  },
+  sectionTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  fieldRow: {
+    alignItems: 'center',
+    borderTopColor: 'rgba(66,98,149,0.28)',
+    borderTopWidth: 1,
+    flexDirection: 'row',
+    minHeight: 66,
+    paddingVertical: 10,
+  },
+  fieldLeft: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+  },
+  fieldIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(15,44,91,0.72)',
+    borderRadius: 13,
+    height: 36,
+    justifyContent: 'center',
+    marginRight: 10,
+    width: 36,
+  },
+  fieldCopy: {
+    flex: 1,
+    minWidth: 0,
+  },
+  fieldLabel: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  fieldSubtitle: {
+    color: '#9faac6',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  fieldRight: {
+    alignItems: 'center',
+    flexDirection: 'row',
     marginLeft: 10,
+    maxWidth: 130,
   },
-  okText: { color: '#fff', fontWeight: '600' },
-  card: {
-    flexDirection: 'row',
+  fieldValue: {
+    fontSize: 12,
+    fontWeight: '900',
+    marginRight: 8,
+    maxWidth: 104,
+  },
+  modalOverlay: {
     alignItems: 'center',
-    padding: cardPadding,
-    borderRadius: cardRadius,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    marginVertical: 8,
-  },
-  cardSelected: { borderColor: '#007AFF', backgroundColor: '#e6f0ff' },
-  icon: { width: iconSize, height: iconSize, marginRight: iconMarginR },
-  cardTitle: { fontSize: cardTitleFontSize, fontWeight: '600' },
-  cardDescription: { fontSize: cardDescFontSize, color: '#555' },
-  timePickerOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.66)',
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    paddingHorizontal: 22,
   },
-  timePickerContainer: {
-    backgroundColor: 'white',
-    borderRadius: 14,
-    padding: 20,
-    width: '80%',
-    alignItems: 'center',
-  },
-  timePicker: {
+  modalFrame: {
+    borderColor: '#315f9f',
+    borderRadius: 22,
+    borderWidth: 1,
+    overflow: 'hidden',
     width: '100%',
   },
-  cancelButton: {
+  editModalFrame: {
+    maxHeight: '84%',
+  },
+  locationModalFrame: {
+    maxHeight: '88%',
+  },
+  modalSurface: {
+    width: '100%',
+  },
+  modalCard: {
+    padding: 18,
+  },
+  modalTitle: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '900',
+  },
+  modalSubtitle: {
+    color: '#aeb8d5',
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 5,
+  },
+  textInput: {
+    backgroundColor: 'rgba(7,26,61,0.9)',
+    borderColor: '#284e87',
+    borderRadius: 15,
+    borderWidth: 1,
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '800',
+    height: 52,
+    marginTop: 18,
+    paddingHorizontal: 14,
+  },
+  numberList: {
+    marginTop: 16,
+    maxHeight: 280,
+  },
+  numberListContent: {
+    gap: 8,
+  },
+  numberOption: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,26,61,0.74)',
+    borderColor: '#254e85',
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 42,
+    justifyContent: 'center',
+  },
+  numberOptionSelected: {
+    backgroundColor: 'rgba(22,184,255,0.18)',
+    borderColor: '#35d9ff',
+  },
+  numberText: {
+    color: '#aeb8d5',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  numberTextSelected: {
+    color: '#ffffff',
+    fontSize: 16,
+  },
+  choiceList: {
+    gap: 10,
+    marginTop: 18,
+  },
+  choiceOption: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,26,61,0.74)',
+    borderColor: '#254e85',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    minHeight: 62,
     padding: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#D3D3D3',
+  },
+  choiceOptionSelected: {
+    backgroundColor: 'rgba(22,184,255,0.16)',
+    borderColor: '#35d9ff',
+  },
+  choiceImage: {
+    height: 40,
     marginRight: 10,
+    width: 40,
+  },
+  choiceCopy: {
+    flex: 1,
+  },
+  choiceTitle: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  choiceDescription: {
+    color: '#aeb8d5',
+    fontSize: 11,
+    lineHeight: 15,
+    marginTop: 3,
+  },
+  choiceRadio: {
+    alignItems: 'center',
+    borderColor: '#5270a6',
+    borderRadius: 12,
+    borderWidth: 1,
+    height: 24,
+    justifyContent: 'center',
+    width: 24,
+  },
+  choiceRadioSelected: {
+    backgroundColor: '#1688ff',
+    borderColor: '#35d9ff',
+  },
+  timeModal: {
+    padding: 18,
+  },
+  locationModal: {
+    padding: 18,
+  },
+  locationHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  locationClose: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(22,38,76,0.94)',
+    borderColor: '#294d82',
+    borderRadius: 14,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    width: 38,
+  },
+  locationSelectPanel: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,26,61,0.9)',
+    borderColor: '#284e87',
+    borderRadius: 16,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 18,
+    minHeight: 66,
+    paddingHorizontal: 14,
+  },
+  locationSelectLeft: {
+    alignItems: 'center',
+    flex: 1,
+    flexDirection: 'row',
+    minWidth: 0,
+  },
+  locationIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(22,184,255,0.14)',
+    borderColor: '#235d9c',
+    borderRadius: 13,
+    borderWidth: 1,
+    height: 38,
+    justifyContent: 'center',
+    marginRight: 10,
+    width: 38,
+  },
+  locationSelectLabel: {
+    color: '#9faac6',
+    fontSize: 11,
+    fontWeight: '800',
+  },
+  locationSelectValue: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '900',
+    marginTop: 3,
+  },
+  citySearchBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,26,61,0.9)',
+    borderColor: '#284e87',
+    borderRadius: 15,
+    borderWidth: 1,
+    flexDirection: 'row',
+    height: 50,
+    marginTop: 14,
+    paddingHorizontal: 12,
+  },
+  citySearchInput: {
+    color: '#ffffff',
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '800',
+    marginLeft: 8,
+  },
+  cityList: {
+    marginTop: 12,
+    maxHeight: 290,
+  },
+  cityOption: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(7,26,61,0.66)',
+    borderColor: '#254e85',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginBottom: 8,
+    minHeight: 54,
+    paddingHorizontal: 10,
+  },
+  cityOptionSelected: {
+    backgroundColor: 'rgba(22,184,255,0.16)',
+    borderColor: '#35d9ff',
+  },
+  cityOptionIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(22,184,255,0.12)',
+    borderRadius: 11,
+    height: 34,
+    justifyContent: 'center',
+    marginRight: 10,
+    width: 34,
+  },
+  cityOptionText: {
+    color: '#ffffff',
+    flex: 1,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  cityEmptyText: {
+    color: '#aeb8d5',
+    fontSize: 13,
+    paddingVertical: 22,
+    textAlign: 'center',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 18,
+  },
+  cancelButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(22,38,76,0.94)',
+    borderColor: '#294d82',
+    borderRadius: 13,
+    borderWidth: 1,
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
   },
   saveButton: {
-    padding: 10,
-    paddingHorizontal: 20,
-    borderRadius: 8,
-    backgroundColor: '#007AFF',
+    alignItems: 'center',
+    backgroundColor: '#0e82ff',
+    borderColor: '#54c2ff',
+    borderRadius: 13,
+    borderWidth: 1,
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
   },
-  buttonText: {
-    color: '#fff',
-    fontWeight: 'bold',
+  cancelText: {
+    color: '#d8e4ff',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  saveText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '900',
   },
 });
+
+export default PersonalInformationScreen;

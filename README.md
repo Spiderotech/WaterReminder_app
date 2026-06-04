@@ -1,4 +1,20 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+This is the DoraDrink React Native mobile app.
+
+For the current app flow, screen-by-screen functionality, AsyncStorage keys, notification behavior, and future update checklist, see [docs/APP_FUNCTIONALITY.md](docs/APP_FUNCTIONALITY.md).
+
+For the planned gamified V2 upgrade architecture, including competitions, coins, Energy Level, fixed 3-reminder slots, backend, and admin panel, see [docs/V2_UPDATE_ARCHITECTURE_PLAN.md](docs/V2_UPDATE_ARCHITECTURE_PLAN.md).
+
+For V2 screen-by-screen UI placement and setup guidance, see [docs/V2_SCREEN_UI_PLACEMENT_GUIDE.md](docs/V2_SCREEN_UI_PLACEMENT_GUIDE.md).
+
+For V2 backend architecture, see [docs/V2_BACKEND_ARCHITECTURE_PLAN.md](docs/V2_BACKEND_ARCHITECTURE_PLAN.md).
+
+For V2 admin panel planning, see [docs/V2_ADMIN_PANEL_PLAN.md](docs/V2_ADMIN_PANEL_PLAN.md).
+
+For V2 API call reduction and cost comparison, see [docs/V2_COST_OPTIMIZATION_AND_COMPARISON.md](docs/V2_COST_OPTIMIZATION_AND_COMPARISON.md).
+
+For the V2 project working roadmap, see [docs/V2_PROJECT_WORKING_PLAN.md](docs/V2_PROJECT_WORKING_PLAN.md).
+
+This project was bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
 
 # Getting Started
 

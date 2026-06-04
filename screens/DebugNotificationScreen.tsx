@@ -18,7 +18,7 @@ const DebugNotificationScreen = () => {
 
   const handleTest = async () => {
     await testInstantNotification();
-    Alert.alert('✅ Scheduled', 'Test notification will show in 5 seconds.');
+    Alert.alert('✅ Scheduled', 'Test notification will show in 10 seconds.');
   };
 
   const handleCancelAll = async () => {
