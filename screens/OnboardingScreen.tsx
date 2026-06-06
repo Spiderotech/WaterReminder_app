@@ -1,10 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
-  FlatList,
   Image,
   ImageSourcePropType,
-  Modal,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,7 +11,6 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { City, State } from 'country-state-city';
 import CountryPicker, { Country, CountryCode, Flag } from 'react-native-country-picker-modal';
 import Feather from 'react-native-vector-icons/Feather';
 import FontAwesome5 from 'react-native-vector-icons/FontAwesome5';
@@ -35,7 +32,6 @@ type OnboardingData = {
   avatar?: string;
   country?: string;
   countryCode?: CountryCode;
-  city?: string;
   wakeUpTime?: string;
   sleepTime?: string;
   planType?: 'smart' | 'performance' | 'custom';
@@ -325,7 +321,6 @@ const initialData: OnboardingData = {
   avatar: 'male_1',
   country: 'India',
   countryCode: 'IN',
-  city: 'Bangalore, Karnataka',
   wakeUpTime: '06:30',
   sleepTime: '23:00',
   planType: 'smart',
@@ -353,7 +348,7 @@ const OnboardingScreen = ({ navigation }: any) => {
       case 3:
         return !!userData.username?.trim();
       case 4:
-        return !!userData.country && !!userData.city;
+        return !!userData.country;
       case 5:
         return !!userData.wakeUpTime && !!userData.sleepTime;
       case 6:
@@ -703,8 +698,6 @@ const LocationStep = ({
   updateData: (data: Partial<OnboardingData>) => void;
 }) => {
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  const [cityPickerVisible, setCityPickerVisible] = useState(false);
-  const [citySearch, setCitySearch] = useState('');
   const [weatherProfile, setWeatherProfile] = useState<WeatherProfile>(() => getRandomWeatherProfile());
   const countryCode = userData.countryCode || 'IN';
   const weatherAccentStyle = useMemo(
@@ -712,47 +705,8 @@ const LocationStep = ({
     [weatherProfile.accent],
   );
 
-  const cities = useMemo(() => {
-    const states = State.getStatesOfCountry(countryCode);
-    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
-      acc[state.isoCode] = state.name;
-      return acc;
-    }, {});
-
-    return (City.getCitiesOfCountry(countryCode) || [])
-      .map((city) => ({
-        key: `${city.name}-${city.stateCode}`,
-        label: stateNameByCode[city.stateCode]
-          ? `${city.name}, ${stateNameByCode[city.stateCode]}`
-          : city.name,
-      }))
-      .filter((city, index, list) => list.findIndex((item) => item.label === city.label) === index)
-      .slice(0, 500);
-  }, [countryCode]);
-
-  const filteredCities = useMemo(() => {
-    const query = citySearch.trim().toLowerCase();
-
-    if (!query) {
-      return cities;
-    }
-
-    return cities.filter((city) => city.label.toLowerCase().includes(query));
-  }, [cities, citySearch]);
-
   const handleCountrySelect = (country: Country) => {
     const nextCountryCode = country.cca2;
-    const states = State.getStatesOfCountry(nextCountryCode);
-    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
-      acc[state.isoCode] = state.name;
-      return acc;
-    }, {});
-    const firstCity = City.getCitiesOfCountry(nextCountryCode)?.[0];
-    const nextCity = firstCity
-      ? stateNameByCode[firstCity.stateCode]
-        ? `${firstCity.name}, ${stateNameByCode[firstCity.stateCode]}`
-        : firstCity.name
-      : '';
     const countryName = typeof country.name === 'string'
       ? country.name
       : country.name.common || nextCountryCode;
@@ -762,10 +716,8 @@ const LocationStep = ({
     updateData({
       country: countryName,
       countryCode: nextCountryCode,
-      city: nextCity,
       climate: nextWeather.climate,
     });
-    setCitySearch('');
     setCountryPickerVisible(false);
   };
 
@@ -803,72 +755,10 @@ const LocationStep = ({
         valueIcon={<Flag countryCode={countryCode} withEmoji withFlagButton flagSize={28} />}
         onPress={() => setCountryPickerVisible(true)}
       />
-      <SelectPanel
-        icon={<MaterialCommunityIcons name="city-variant-outline" size={20} color={BLUE} />}
-        label="City"
-        value={userData.city || 'Select city'}
-        valueIcon={<CityBadge />}
-        onPress={() => setCityPickerVisible(true)}
-      />
-
-      <Modal
-        visible={cityPickerVisible}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setCityPickerVisible(false)}
-      >
-        <View style={styles.cityModalBackdrop}>
-          <View style={styles.cityModal}>
-            <View style={styles.cityModalHeader}>
-              <Text style={styles.cityModalTitle}>Select city</Text>
-              <TouchableOpacity onPress={() => setCityPickerVisible(false)} style={styles.cityModalClose}>
-                <Feather name="x" size={22} color="#fff" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.citySearchBox}>
-              <Feather name="search" size={20} color={BLUE} />
-              <TextInput
-                value={citySearch}
-                onChangeText={setCitySearch}
-                placeholder="Search city or state"
-                placeholderTextColor="#7f91c6"
-                selectionColor={BLUE}
-                style={styles.citySearchInput}
-              />
-              {citySearch ? (
-                <TouchableOpacity onPress={() => setCitySearch('')}>
-                  <Feather name="x-circle" size={20} color="#7f91c6" />
-                </TouchableOpacity>
-              ) : null}
-            </View>
-            <FlatList
-              data={filteredCities}
-              keyExtractor={(item) => item.key}
-              showsVerticalScrollIndicator={false}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={styles.cityOption}
-                  onPress={() => {
-                    const nextWeather = getRandomWeatherProfile();
-                    setWeatherProfile(nextWeather);
-                    updateData({ city: item.label, climate: nextWeather.climate });
-                    setCityPickerVisible(false);
-                  }}
-                >
-                  <Text style={styles.cityOptionText}>{item.label}</Text>
-                  {userData.city === item.label ? <Feather name="check" size={20} color={BLUE} /> : null}
-                </TouchableOpacity>
-              )}
-              ListEmptyComponent={<Text style={styles.cityEmptyText}>No city found for this search.</Text>}
-            />
-          </View>
-        </View>
-      </Modal>
-
       <View style={styles.weatherCard}>
         <Image source={weatherProfile.image} style={styles.weatherImage} />
         <View style={styles.flex}>
-          <Text style={styles.weatherLabel}>Current weather in {userData.city?.split(',')[0] || 'your city'}</Text>
+          <Text style={styles.weatherLabel}>Weather profile for {userData.country || 'your country'}</Text>
           <Text style={styles.weatherTemp}>
             <Text style={[styles.hotText, weatherAccentStyle]}>{weatherProfile.status}</Text>
             {'  '}
@@ -888,7 +778,7 @@ const LocationStep = ({
           <Text style={styles.whyTitle}>Why location matters?</Text>
           <Text style={styles.whyText}>Climate and environment affect how much water your body needs every day.</Text>
         </View>
-        <View style={styles.cityArt}>
+        <View style={styles.locationArt}>
           <Image source={require('../assets/location2.png')} style={styles.smartBottle} />
         </View>
       </View>
@@ -1177,9 +1067,20 @@ const PlanSummaryStep = ({
 
       <Text style={styles.nextTitle}>What happens next?</Text>
       <View style={styles.nextPanel}>
-        <NextItem image={require('../assets/whatnext_1.png')} title="Smart Reminders" text="We'll remind you at the right time to help you stay on track." color={BLUE} />
-        <NextItem image={require('../assets/whatnext_2.png')} title="Track & Improve" text="Monitor your progress and build better hydration habits." color="#b65cff" />
-        <NextItem image={require('../assets/whatnext_3.png')} title="Achievements" text="Complete goals, earn badges and stay motivated every day." color="#42d37d" />
+        {[
+          { image: require('../assets/whatnext_1.png'), title: 'Smart Reminders', text: "We'll remind you at the right time to help you stay on track.", color: BLUE },
+          { image: require('../assets/whatnext_2.png'), title: 'Track & Improve', text: 'Monitor your progress and build better hydration habits.', color: '#b65cff' },
+          { image: require('../assets/whatnext_3.png'), title: 'Achievements', text: 'Complete goals, earn badges and stay motivated every day.', color: '#42d37d' },
+        ].map((item, index, list) => (
+          <NextItem
+            key={item.title}
+            image={item.image}
+            title={item.title}
+            text={item.text}
+            color={item.color}
+            isLast={index === list.length - 1}
+          />
+        ))}
       </View>
 
       <View style={styles.proTipPanel}>
@@ -1375,12 +1276,6 @@ const SelectPanel = ({
   </View>
 );
 
-const CityBadge = () => (
-  <View style={styles.cityBadge}>
-    <MaterialCommunityIcons name="office-building" size={31} color="#7d95ff" />
-  </View>
-);
-
 const TimePanel = ({
   label,
   subtitle,
@@ -1484,8 +1379,12 @@ const TimeWheelColumn = <T extends string | number>({
 }) => {
   const scrollRef = useRef<ScrollView>(null);
   const selectedIndex = Math.max(0, values.findIndex((item) => item === selectedValue));
+  const lastSelectedIndexRef = useRef(selectedIndex);
+  const isScrollingRef = useRef(false);
 
   useEffect(() => {
+    lastSelectedIndexRef.current = selectedIndex;
+    if (isScrollingRef.current) return;
     scrollRef.current?.scrollTo({
       y: selectedIndex * TIME_ITEM_HEIGHT,
       animated: false,
@@ -1494,7 +1393,14 @@ const TimeWheelColumn = <T extends string | number>({
 
   const selectByOffset = (offsetY: number) => {
     const index = Math.max(0, Math.min(values.length - 1, Math.round(offsetY / TIME_ITEM_HEIGHT)));
+    if (index === lastSelectedIndexRef.current) return;
+    lastSelectedIndexRef.current = index;
     onSelect(values[index]);
+  };
+
+  const finishScroll = (offsetY: number) => {
+    selectByOffset(offsetY);
+    isScrollingRef.current = false;
   };
 
   return (
@@ -1505,8 +1411,13 @@ const TimeWheelColumn = <T extends string | number>({
       showsVerticalScrollIndicator={false}
       snapToInterval={TIME_ITEM_HEIGHT}
       decelerationRate="fast"
-      onMomentumScrollEnd={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}
-      onScrollEndDrag={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}
+      scrollEventThrottle={16}
+      onScrollBeginDrag={() => {
+        isScrollingRef.current = true;
+      }}
+      onScroll={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}
+      onMomentumScrollEnd={(event) => finishScroll(event.nativeEvent.contentOffset.y)}
+      onScrollEndDrag={(event) => finishScroll(event.nativeEvent.contentOffset.y)}
     >
       {values.map((item) => {
         const selected = item === selectedValue;
@@ -1685,17 +1596,21 @@ const NextItem = ({
   title,
   text,
   color,
+  isLast,
 }: {
   image: ImageSourcePropType;
   title: string;
   text: string;
   color: string;
+  isLast: boolean;
 }) => {
   const colorStyle = useMemo(() => ({ color }), [color]);
   const iconBgStyle = useMemo(() => ({ backgroundColor: `${color}24` }), [color]);
+  const nodeStyle = useMemo(() => ({ borderColor: color, backgroundColor: `${color}18` }), [color]);
 
   return (
     <View style={styles.nextItem}>
+      {!isLast ? <View pointerEvents="none" style={styles.nextItemSeparator} /> : null}
       <View style={[styles.nextItemIcon, iconBgStyle]}>
         <Image source={image} style={styles.nextItemImage} resizeMode="contain" />
       </View>
@@ -1703,7 +1618,16 @@ const NextItem = ({
         <Text style={[styles.nextItemTitle, colorStyle]}>{title}</Text>
         <Text style={styles.nextItemText}>{text}</Text>
       </View>
-      <Feather name="chevron-right" size={28} color="#dfe8ff" />
+      <View style={styles.nextTimeline}>
+        <View style={[styles.nextTimelineNode, nodeStyle]}>
+          <View style={[styles.nextTimelineDot, { backgroundColor: color }]} />
+        </View>
+        {!isLast ? (
+          <View style={styles.nextTimelineLine}>
+            {[0, 1, 2, 3, 4, 5].map(dot => <View key={dot} style={styles.nextTimelineLineDot} />)}
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 };
@@ -2335,89 +2259,6 @@ const styles = StyleSheet.create({
     fontSize: Math.min(15, width * 0.048),
     fontWeight: '900',
   },
-  cityModalBackdrop: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0, 0, 0, 0.58)',
-  },
-  cityModal: {
-    maxHeight: height * 0.68,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderWidth: 1,
-    borderColor: 'rgba(22, 184, 255, 0.42)',
-    backgroundColor: '#061637',
-    paddingHorizontal: 20,
-    paddingTop: 18,
-    paddingBottom: Math.max(22, height * 0.03),
-  },
-  cityModalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  cityModalTitle: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '900',
-  },
-  cityModalClose: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(22, 184, 255, 0.16)',
-  },
-  citySearchBox: {
-    minHeight: 48,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(22, 184, 255, 0.32)',
-    backgroundColor: 'rgba(4, 17, 45, 0.8)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    paddingHorizontal: 14,
-    marginBottom: 12,
-  },
-  citySearchInput: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingVertical: 10,
-  },
-  cityOption: {
-    minHeight: 54,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(94, 125, 190, 0.22)',
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  cityOptionText: {
-    flex: 1,
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '700',
-    paddingRight: 12,
-  },
-  cityEmptyText: {
-    color: MUTED,
-    fontSize: 16,
-    textAlign: 'center',
-    paddingVertical: 28,
-  },
-  cityBadge: {
-    width: 42,
-    height: 42,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(76, 99, 226, 0.2)',
-  },
   weatherCard: {
     borderRadius: 18,
     borderWidth: 1,
@@ -2528,7 +2369,7 @@ const styles = StyleSheet.create({
     fontSize: Math.min(12, width * 0.035),
     lineHeight: Math.min(18, width * 0.053),
   },
-  cityArt: {
+  locationArt: {
     width: 96,
     height: 62,
     flexDirection: 'row',
@@ -3070,8 +2911,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 14,
-    borderBottomWidth: 1,
-    borderColor: 'rgba(80, 114, 176, 0.25)',
+    position: 'relative',
+  },
+  nextItemSeparator: {
+    backgroundColor: 'rgba(80, 114, 176, 0.22)',
+    bottom: 0,
+    height: 1,
+    left: 60,
+    position: 'absolute',
+    right: 42,
   },
   nextItemIcon: {
     width: 46,
@@ -3084,6 +2932,42 @@ const styles = StyleSheet.create({
   nextItemImage: {
     width: 46,
     height: 46,
+  },
+  nextTimeline: {
+    alignItems: 'center',
+    alignSelf: 'stretch',
+    justifyContent: 'center',
+    width: 30,
+  },
+  nextTimelineNode: {
+    alignItems: 'center',
+    borderRadius: 14,
+    borderStyle: 'dotted',
+    borderWidth: 2,
+    height: 28,
+    justifyContent: 'center',
+    width: 28,
+    zIndex: 2,
+  },
+  nextTimelineDot: {
+    borderRadius: 5,
+    height: 10,
+    width: 10,
+  },
+  nextTimelineLine: {
+    alignItems: 'center',
+    bottom: -45,
+    gap: 5,
+    height: 58,
+    justifyContent: 'space-between',
+    position: 'absolute',
+    width: 6,
+  },
+  nextTimelineLineDot: {
+    backgroundColor: 'rgba(223,232,255,0.7)',
+    borderRadius: 2,
+    height: 4,
+    width: 4,
   },
   nextItemTitle: {
     fontSize: Math.min(15, width * 0.04),

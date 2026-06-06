@@ -53,7 +53,6 @@ const buildProfilePayload = async () => {
     username: profile?.username,
     avatar: profile?.avatar,
     country: profile?.country,
-    city: profile?.city,
     gender: profile?.gender,
     age: profile?.age,
     height: profile?.height,

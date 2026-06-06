@@ -30,7 +30,7 @@ import {
 } from '../services/competitionService';
 import { playBackgroundMusic, stopBackgroundMusic } from '../services/backgroundMusicService';
 
-type ScopeTab = 'global' | 'country' | 'city';
+type ScopeTab = 'global' | 'country';
 
 type PodiumUser = {
   id: string;
@@ -72,7 +72,6 @@ const images = {
 const scopeTabs: { id: ScopeTab; label: string; icon: string }[] = [
   { id: 'global', label: 'Global', icon: 'globe' },
   { id: 'country', label: 'Country', icon: 'flag' },
-  { id: 'city', label: 'City', icon: 'city' },
 ];
 
 const LEADERBOARD_REFRESH_INTERVAL_MS = 60 * 60 * 1000;
@@ -516,9 +515,6 @@ const ScopeTabs = ({ activeTab, onChange }: { activeTab: ScopeTab; onChange: (ta
 
 const ScopeTabIcon = ({ tab, active }: { tab: { id: ScopeTab; icon: string }; active: boolean }) => {
   const color = active ? '#ffffff' : '#aeb4ca';
-  if (tab.id === 'city') {
-    return <MaterialCommunityIcons name="office-building" size={18} color={color} />;
-  }
   return <Feather name={tab.icon} size={18} color={color} />;
 };
 
@@ -668,7 +664,7 @@ const CompetitionCta = ({
     <Image source={images.trophy} style={styles.ctaTrophy} resizeMode="contain" />
     <View style={styles.ctaCopy}>
       <Text style={styles.ctaTitle}>
-        {isEnded ? `${title} final results` : isScheduled ? `${title} is scheduled` : hasCompetition ? `${title} is live 🔥` : 'No weekly challenge'}
+        {isEnded ? `${title} final results` : isScheduled ? `${title} is scheduled` : hasCompetition ? `${title} is live 🔥` : 'Challenge coming soon'}
       </Text>
       <Text style={styles.ctaSubtitle}>
         {isEnded
@@ -688,7 +684,7 @@ const CompetitionCta = ({
       </View> : null}
     </View>
     <TouchableOpacity activeOpacity={0.88} style={[styles.joinNowButton, !hasCompetition && styles.joinNowButtonDisabled]} onPress={onJoinPress} disabled={!hasCompetition}>
-      <Text style={styles.joinNowText}>{isEnded ? 'View Challenge' : isScheduled ? 'View Details' : hasCompetition ? 'Join Now' : 'No Challenge'}</Text>
+      <Text style={styles.joinNowText}>{isEnded ? 'View Challenge' : isScheduled ? 'View Details' : hasCompetition ? 'Join Now' : 'Challenge coming soon'}</Text>
     </TouchableOpacity>
   </GradientFrame>
   );

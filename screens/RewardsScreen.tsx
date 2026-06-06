@@ -43,8 +43,9 @@ import {
   getSpinPrizeById,
   performSpin,
   unlockExtraSpinWithAd,
+  coinPackProductIds,
 } from '../services/rewardsService';
-import { purchaseCoinPackWithStore } from '../services/iapPurchaseService';
+import { fetchCoinPackStoreProducts, purchaseCoinPackWithStore } from '../services/iapPurchaseService';
 import { DailyHydrationState, getDailyHydrationState } from '../services/hydrationService';
 import { Wallet } from '../services/walletService';
 import { StreakState } from '../services/streakService';
@@ -91,6 +92,8 @@ type SpinReward = {
   amount: string;
   image: ImageSourcePropType;
 };
+
+type RewardSplashKind = 'coin' | 'diamond' | 'coinBulk';
 
 const { width } = Dimensions.get('window');
 const isCompact = width < 390;
@@ -165,9 +168,9 @@ const copyToClipboard = (value?: string | null) => {
 };
 
 const coinPacks: CoinPack[] = [
-  { id: 'starter', amount: '500', price: '£1.20', image: images.coin },
-  { id: 'value', amount: '1,500', price: '£2.99', image: images.coins },
-  { id: 'mega', amount: '3,000', price: '£4.99', image: images.coinStack },
+  { id: 'starter', amount: '500', price: 'Store price', image: images.coin },
+  { id: 'value', amount: '1,500', price: 'Store price', image: images.coins },
+  { id: 'mega', amount: '3,000', price: 'Store price', image: images.coinStack },
 ];
 
 const milestoneRewards: Array<ClaimableReward & { requiredStreak: number }> = [
@@ -334,6 +337,7 @@ const RewardsScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
   const coinSplashValues = useRef(coinSplashVectors.map(() => new Animated.Value(0))).current;
   const [showCoinSplash, setShowCoinSplash] = useState(false);
   const [coinSplashAmount, setCoinSplashAmount] = useState('+0');
+  const [rewardSplashKind, setRewardSplashKind] = useState<RewardSplashKind>('coin');
 
   const handleBackPress = useCallback(() => {
     if (goToTab) {
@@ -343,8 +347,9 @@ const RewardsScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
     navigation.goBack();
   }, [goToTab, navigation]);
 
-  const triggerCoinSplash = useCallback((amount: string) => {
+  const triggerRewardSplash = useCallback((amount: string, kind: RewardSplashKind = 'coin') => {
     setCoinSplashAmount(amount);
+    setRewardSplashKind(kind);
     setShowCoinSplash(true);
     coinSplashValues.forEach(value => value.setValue(0));
 
@@ -437,11 +442,18 @@ const RewardsScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
           />
           <WalletRow theme={tabTheme} wallet={wallet} streak={streak} />
           <DailyBonusCard dailyState={dailyState} />
-          <SpinSection spinState={spinState} onRewardsChanged={loadRewards} onRewardEarned={triggerCoinSplash} />
-          <AdRewardCard adState={adState} onRewardsChanged={loadRewards} onRewardEarned={triggerCoinSplash} />
-          <CoinBuyingSection onRewardsChanged={loadRewards} />
+          <SpinSection spinState={spinState} onRewardsChanged={loadRewards} onRewardEarned={triggerRewardSplash} />
+          <AdRewardCard adState={adState} onRewardsChanged={loadRewards} onRewardEarned={triggerRewardSplash} />
+          <CoinBuyingSection
+            onRewardsChanged={loadRewards}
+            onPurchaseSuccess={amount => triggerRewardSplash(amount, 'coinBulk')}
+          />
           <CoinPurchaseHistorySection purchases={purchaseHistory} />
-          <ConversionCard wallet={wallet} onRewardsChanged={loadRewards} />
+          <ConversionCard
+            wallet={wallet}
+            onRewardsChanged={loadRewards}
+            onDiamondConverted={() => triggerRewardSplash('+1 Diamond', 'diamond')}
+          />
           <VoucherRewardsSection
             vouchers={vouchers}
             onCopy={copyToClipboard}
@@ -454,11 +466,11 @@ const RewardsScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
             streak={streak}
             onWalletChanged={setWallet}
             onRewardsChanged={loadRewards}
-            onRewardClaimed={triggerCoinSplash}
+            onRewardClaimed={triggerRewardSplash}
           />
           <RewardHistoryPreview history={mapLedgerToHistory(history)} />
         </ScrollView>
-        {showCoinSplash ? <CoinSplashOverlay amount={coinSplashAmount} values={coinSplashValues} /> : null}
+        {showCoinSplash ? <CoinSplashOverlay amount={coinSplashAmount} values={coinSplashValues} kind={rewardSplashKind} /> : null}
       </SafeAreaView>
     </LinearGradient>
   );
@@ -785,7 +797,6 @@ const SpinSection = ({
         <Image source={lastReward.image} style={styles.historyCoin} resizeMode="contain" />
         <Text style={styles.historyAmount}>{lastReward.amount}</Text>
         <Text style={styles.lastSpinTime}>{lastSpinTime}</Text>
-        <Feather name="chevron-right" size={22} color="#28c9ff" />
       </View>
     </GradientFrame>
   );
@@ -847,8 +858,41 @@ const AdRewardCard = ({
   );
 };
 
-const CoinBuyingSection = ({ onRewardsChanged }: { onRewardsChanged: () => Promise<void> }) => {
+const CoinBuyingSection = ({
+  onRewardsChanged,
+  onPurchaseSuccess,
+}: {
+  onRewardsChanged: () => Promise<void>;
+  onPurchaseSuccess: (amount: string) => void;
+}) => {
   const [buyingPackId, setBuyingPackId] = useState<CoinPackId | null>(null);
+  const [storePrices, setStorePrices] = useState<Partial<Record<CoinPackId, string>>>({});
+
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchCoinPackStoreProducts()
+      .then(productsById => {
+        if (!isMounted) return;
+        setStorePrices(
+          coinPacks.reduce((acc, pack) => {
+            const productId = coinPackProductIds[pack.id];
+            const storePrice = productsById[productId]?.price;
+            if (storePrice) {
+              acc[pack.id] = storePrice;
+            }
+            return acc;
+          }, {} as Partial<Record<CoinPackId, string>>),
+        );
+      })
+      .catch(() => {
+        // Keep fallback labels when products are not active in the store yet.
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleBuyPack = async (packId: CoinPackId) => {
     if (buyingPackId) return;
@@ -858,6 +902,10 @@ const CoinBuyingSection = ({ onRewardsChanged }: { onRewardsChanged: () => Promi
       const backendUserId = await ensureGoogleBackendUser();
       await purchaseCoinPackWithStore(packId, backendUserId);
       await onRewardsChanged();
+      const purchasedPack = coinPacks.find(pack => pack.id === packId);
+      if (purchasedPack) {
+        onPurchaseSuccess(`+${purchasedPack.amount} Coins`);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to buy coins right now.';
       Alert.alert('Coin purchase unavailable', message);
@@ -870,31 +918,30 @@ const CoinBuyingSection = ({ onRewardsChanged }: { onRewardsChanged: () => Promi
     <GradientFrame colors={['rgba(9,26,58,0.96)', 'rgba(8,13,34,0.98)']} style={styles.buyCard}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Buy Coins</Text>
-        <View style={styles.secureRow}>
-          <Feather name="lock" size={16} color="#aeb8dd" />
-          <Text style={styles.smallMuted}>Store verified</Text>
-        </View>
       </View>
       <View style={styles.packRow}>
-        {coinPacks.map(pack => (
-          <GradientFrame
-            key={pack.id}
-            colors={['rgba(4,54,103,0.95)', 'rgba(8,22,51,0.98)']}
-            style={styles.packCard}
-          >
-            <Image source={pack.image} style={styles.packImage} resizeMode="contain" />
-            <Text style={styles.packAmount}>{pack.amount}</Text>
-            <Text style={styles.walletLabel}>Coins</Text>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              disabled={Boolean(buyingPackId)}
-              onPress={() => handleBuyPack(pack.id)}
-              style={[styles.priceButton, buyingPackId === pack.id && styles.disabledButton]}
+        {coinPacks.map(pack => {
+          const displayPrice = storePrices[pack.id] || pack.price;
+          return (
+            <GradientFrame
+              key={pack.id}
+              colors={['rgba(4,54,103,0.95)', 'rgba(8,22,51,0.98)']}
+              style={styles.packCard}
             >
-              <Text style={styles.priceText}>{buyingPackId === pack.id ? 'Opening...' : pack.price}</Text>
-            </TouchableOpacity>
-          </GradientFrame>
-        ))}
+              <Image source={pack.image} style={styles.packImage} resizeMode="contain" />
+              <Text style={styles.packAmount}>{pack.amount}</Text>
+              <Text style={styles.walletLabel}>Coins</Text>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                disabled={Boolean(buyingPackId)}
+                onPress={() => handleBuyPack(pack.id)}
+                style={[styles.priceButton, buyingPackId === pack.id && styles.disabledButton]}
+              >
+                <Text style={styles.priceText}>{buyingPackId === pack.id ? 'Opening...' : displayPrice}</Text>
+              </TouchableOpacity>
+            </GradientFrame>
+          );
+        })}
       </View>
     </GradientFrame>
   );
@@ -935,9 +982,11 @@ const CoinPurchaseHistorySection = ({ purchases }: { purchases: CoinPurchaseHist
 const ConversionCard = ({
   wallet,
   onRewardsChanged,
+  onDiamondConverted,
 }: {
   wallet: Wallet;
   onRewardsChanged: () => Promise<void>;
+  onDiamondConverted: () => void;
 }) => {
   const [isConverting, setIsConverting] = useState(false);
   const remainingCoins = Math.max(diamondConversionCost - wallet.coins, 0);
@@ -952,6 +1001,7 @@ const ConversionCard = ({
       const backendUserId = await ensureGoogleBackendUser();
       await convertCoinsToDiamond(backendUserId);
       await onRewardsChanged();
+      onDiamondConverted();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unable to convert coins right now.';
       Alert.alert('Conversion unavailable', message);
@@ -1113,7 +1163,7 @@ const ClaimableRewards = ({
         <Text style={styles.sectionTitle}>Claimable Rewards</Text>
         <View style={styles.linkRow}>
           <Text style={styles.linkText}>{rewards.length} Ready</Text>
-          <Feather name="chevron-right" size={21} color="#28c9ff" />
+         
         </View>
       </View>
       <FlatList
@@ -1194,7 +1244,24 @@ const ClaimCard = ({
   );
 };
 
-const CoinSplashOverlay = ({ amount, values }: { amount: string; values: Animated.Value[] }) => (
+const getRewardSplashImage = (kind: RewardSplashKind, index: number) => {
+  if (kind === 'diamond') return images.diamond;
+  if (kind === 'coinBulk') {
+    if (index % 5 === 0) return images.coinStack;
+    if (index % 3 === 0) return images.coins;
+  }
+  return images.coin;
+};
+
+const CoinSplashOverlay = ({
+  amount,
+  values,
+  kind,
+}: {
+  amount: string;
+  values: Animated.Value[];
+  kind: RewardSplashKind;
+}) => (
   <View pointerEvents="none" style={styles.coinSplashOverlay}>
     <View style={styles.coinSplashOrigin}>
       {values.map((value, index) => {
@@ -1230,7 +1297,7 @@ const CoinSplashOverlay = ({ amount, values }: { amount: string; values: Animate
         return (
           <Animated.Image
             key={`${vector.x}-${index}`}
-            source={images.coin}
+            source={getRewardSplashImage(kind, index)}
             style={[styles.coinSplashImage, animatedStyle]}
             resizeMode="contain"
           />
@@ -1239,6 +1306,7 @@ const CoinSplashOverlay = ({ amount, values }: { amount: string; values: Animate
       <Animated.Text
         style={[
           styles.coinSplashText,
+          kind === 'diamond' && styles.diamondSplashText,
           {
             opacity: values[0].interpolate({
               inputRange: [0, 0.15, 0.82, 1],
@@ -1274,7 +1342,6 @@ const RewardHistoryPreview = ({ history }: { history: RewardHistoryItem[] }) => 
     <GradientFrame colors={['rgba(7,32,69,0.96)', 'rgba(7,15,35,0.98)']} style={styles.historyCard}>
       <View style={styles.sectionHeader}>
         <Text style={styles.sectionTitle}>Recent Rewards History</Text>
-        <Text style={styles.linkText}>View All History</Text>
       </View>
       {displayHistory.map(item => (
         <View key={item.id} style={styles.historyRow}>
@@ -2198,6 +2265,10 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(255,180,20,0.75)',
     textShadowOffset: { width: 0, height: 0 },
     textShadowRadius: 12,
+  },
+  diamondSplashText: {
+    color: '#8fe9ff',
+    textShadowColor: 'rgba(95,220,255,0.82)',
   },
   claimItem: {
     alignItems: 'center',

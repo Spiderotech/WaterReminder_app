@@ -52,7 +52,7 @@ export const getCompetitionScheduleStatus = (competition?: {
   endDate?: string;
 } | null): CompetitionScheduleStatus => {
   if (competition?.hasCompetition === false) {
-    return { label: 'NO CHALLENGE', statLabel: 'None', tone: 'draft', isJoinOpen: false };
+    return { label: 'Challenge coming soon', statLabel: 'None', tone: 'draft', isJoinOpen: false };
   }
 
   const now = Date.now();
@@ -96,7 +96,6 @@ export type CompetitionLeaderboardRow = {
   profilePictureUrl?: string | null;
   avatar?: string | null;
   country?: string | null;
-  city?: string | null;
   diamonds?: number;
   rank: number;
   tapScore: number;

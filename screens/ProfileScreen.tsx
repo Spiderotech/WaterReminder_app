@@ -42,7 +42,6 @@ type SummaryStat = {
 
 type ProfileState = {
   username: string;
-  city: string;
   country: string;
   avatarSource: ImageSourcePropType;
   streak: StreakState;
@@ -124,7 +123,6 @@ const getProfileAvatarSource = (avatarId?: string, gender?: string) => {
 
 const defaultProfileState: ProfileState = {
   username: 'user',
-  city: 'Ahmedabad',
   country: 'India',
   avatarSource: images.avatar,
   streak: { current: 0, best: 0, totalCompletedDays: 0 },
@@ -194,7 +192,6 @@ const sections: Section[] = [
       { id: 'theme', label: 'Theme Settings', subtitle: 'Dark, light, or system', icon: 'theme-light-dark', route: 'ThemeSettings' },
       { id: 'share', label: 'Share DoraDrink', subtitle: 'Invite friends to hydrate with you', icon: 'share-variant-outline' },
       { id: 'language', label: 'Language', subtitle: 'English', icon: 'translate', value: 'EN' },
-      { id: 'version', label: 'App Version', subtitle: 'DoraDrink V2 preview', icon: 'information-outline', value: '2.0' },
     ],
   },
   {
@@ -263,7 +260,6 @@ const ProfileScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
 
         setProfileState({
           username: profile?.username || defaultProfileState.username,
-          city: profile?.city || defaultProfileState.city,
           country: profile?.country || defaultProfileState.country,
           avatarSource: getProfileAvatarSource(profile?.avatar, profile?.gender),
           streak,
@@ -443,8 +439,7 @@ const ProfileHero = ({ theme, profileState }: { theme: MainTabTheme; profileStat
       </View>
       <View style={styles.infoLine}>
         <MaterialCommunityIcons name="map-marker" size={19} color="#9ba7cf" />
-        <Text style={[styles.infoText, { color: theme.mutedText }]}>{[profileState.city, profileState.country].filter(Boolean).join(', ')}</Text>
-        <Text style={styles.flag}>🇮🇳</Text>
+        <Text style={[styles.infoText, { color: theme.mutedText }]}>{profileState.country}</Text>
       </View>
       <View style={styles.infoLine}>
         <MaterialCommunityIcons name="calendar-month" size={18} color="#9ba7cf" />

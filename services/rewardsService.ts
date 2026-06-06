@@ -123,9 +123,9 @@ const claimRewardValues: Record<StaticClaimableRewardId, { title: string; coins:
 };
 
 const coinPackValues: Record<CoinPackId, { title: string; coins: number; price: string }> = {
-  starter: { title: 'Starter coin pack', coins: 500, price: '£1.20' },
-  value: { title: 'Value coin pack', coins: 1500, price: '£2.99' },
-  mega: { title: 'Mega coin pack', coins: 3000, price: '£4.99' },
+  starter: { title: 'Starter coin pack', coins: 500, price: 'store price' },
+  value: { title: 'Value coin pack', coins: 1500, price: 'store price' },
+  mega: { title: 'Mega coin pack', coins: 3000, price: 'store price' },
 };
 
 export const coinPackProductIds: Record<CoinPackId, IapProductId> = {

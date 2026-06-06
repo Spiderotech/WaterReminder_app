@@ -261,6 +261,8 @@ const HomeScreen = () => {
   const navigation = useNavigation();
   const tabTheme = useMainTabTheme();
   const coinSplashValues = React.useRef(coinSplashVectors.map(() => new Animated.Value(0))).current;
+  const trophyPulseValue = React.useRef(new Animated.Value(0)).current;
+  const tapPulseValue = React.useRef(new Animated.Value(0)).current;
 
   const [intake, setIntake] = useState(0);
   const [goal, setGoal] = useState(2500);
@@ -459,6 +461,55 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(trophyPulseValue, {
+          toValue: 1,
+          duration: 1050,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(trophyPulseValue, {
+          toValue: 0,
+          duration: 780,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    pulseAnimation.start();
+    return () => pulseAnimation.stop();
+  }, [trophyPulseValue]);
+
+  useEffect(() => {
+    const pulseAnimation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(tapPulseValue, {
+          toValue: 1,
+          duration: 920,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(tapPulseValue, {
+          toValue: 0,
+          duration: 760,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    if (!activeSlotCompleted) {
+      pulseAnimation.start();
+    } else {
+      tapPulseValue.setValue(0);
+    }
+
+    return () => pulseAnimation.stop();
+  }, [activeSlotCompleted, tapPulseValue]);
+
+  useEffect(() => {
     if (intake < goal && goalCelebrated) {
       setGoalCelebrated(false);
       return;
@@ -471,6 +522,43 @@ const HomeScreen = () => {
       return () => clearTimeout(timer);
     }
   }, [goal, goalCelebrated, intake]);
+
+  const trophyPulseScale = trophyPulseValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.86, 1.26],
+  });
+  const trophyPulseOpacity = trophyPulseValue.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [0.18, 0.38, 0],
+  });
+  const trophyButtonScale = trophyPulseValue.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [1, 1.06, 1],
+  });
+  const tapPulseScale = tapPulseValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.96, 1.1],
+  });
+  const tapPulseOpacity = tapPulseValue.interpolate({
+    inputRange: [0, 0.48, 1],
+    outputRange: [0.22, 0.48, 0.16],
+  });
+  const tapButtonScale = tapPulseValue.interpolate({
+    inputRange: [0, 0.42, 1],
+    outputRange: [1, 1.035, 1],
+  });
+  const joinPulseScale = trophyPulseValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.94, 1.16],
+  });
+  const joinPulseOpacity = trophyPulseValue.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [0.18, 0.52, 0.12],
+  });
+  const joinButtonScale = trophyPulseValue.interpolate({
+    inputRange: [0, 0.45, 1],
+    outputRange: [1, 1.045, 1],
+  });
 
   return (
     <LinearGradient colors={tabTheme.background} style={styles.container}>
@@ -497,13 +585,25 @@ const HomeScreen = () => {
           </View>
 
           <View style={styles.headerActions}>
-            <TouchableOpacity
-              style={[styles.bellButton, { backgroundColor: tabTheme.headerButton, borderColor: tabTheme.border, shadowColor: tabTheme.shadow }]}
-              onPress={() => navigation.navigate('Competition' as never)}
-              activeOpacity={0.82}
-            >
-              <MaterialCommunityIcons name="trophy-outline" size={22} color={tabTheme.icon} />
-            </TouchableOpacity>
+            <Animated.View style={[styles.trophyButtonWrap, { transform: [{ scale: trophyButtonScale }] }]}>
+              <Animated.View
+                pointerEvents="none"
+                style={[
+                  styles.trophyPulse,
+                  {
+                    opacity: trophyPulseOpacity,
+                    transform: [{ scale: trophyPulseScale }],
+                  },
+                ]}
+              />
+              <TouchableOpacity
+                style={[styles.bellButton, styles.trophyButton, { backgroundColor: tabTheme.headerButton }]}
+                onPress={() => navigation.navigate('Competition' as never)}
+                activeOpacity={0.82}
+              >
+                <MaterialCommunityIcons name="trophy-outline" size={22} color="#FFD15A" />
+              </TouchableOpacity>
+            </Animated.View>
             <TouchableOpacity style={[styles.bellButton, { backgroundColor: tabTheme.headerButton, borderColor: tabTheme.border, shadowColor: tabTheme.shadow }]} onPress={() => navigation.navigate('Notifications' as never)}>
               <Feather name="bell" size={22} color={tabTheme.icon} />
               <View style={styles.alertDot} />
@@ -581,26 +681,40 @@ const HomeScreen = () => {
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={[styles.tapButton, activeSlotCompleted && styles.tapButtonDisabled]}
-              onPress={handleDrink}
-              disabled={activeSlotCompleted}
-              activeOpacity={0.88}
-            >
-              <GradientFrame
-                colors={activeSlotCompleted ? ['#19375A', '#123053'] : ['#8337FF', '#5C1ED5']}
-                style={styles.tapButtonGradient}
-              >
-                <MaterialCommunityIcons
-                  name={activeSlotCompleted ? 'check-circle-outline' : 'water'}
-                  size={isWideHome ? 22 : 18}
-                  color={activeSlotCompleted ? '#9CF5FF' : '#83E9FF'}
+            <Animated.View style={[styles.tapButtonWrap, !activeSlotCompleted && { transform: [{ scale: tapButtonScale }] }]}>
+              {!activeSlotCompleted && (
+                <Animated.View
+                  pointerEvents="none"
+                  style={[
+                    styles.tapButtonPulse,
+                    {
+                      opacity: tapPulseOpacity,
+                      transform: [{ scale: tapPulseScale }],
+                    },
+                  ]}
                 />
-                <Text style={styles.tapButtonText}>
-                  {activeSlotCompleted ? 'Slot Complete' : `Tap ${selectedAmount} mL`}
-                </Text>
-              </GradientFrame>
-            </TouchableOpacity>
+              )}
+              <TouchableOpacity
+                style={[styles.tapButton, activeSlotCompleted && styles.tapButtonDisabled]}
+                onPress={handleDrink}
+                disabled={activeSlotCompleted}
+                activeOpacity={0.88}
+              >
+                <GradientFrame
+                  colors={activeSlotCompleted ? ['#19375A', '#123053'] : ['#19C9FF', '#5C1ED5']}
+                  style={styles.tapButtonGradient}
+                >
+                  <MaterialCommunityIcons
+                    name={activeSlotCompleted ? 'check-circle-outline' : 'water'}
+                    size={isWideHome ? 22 : 18}
+                    color={activeSlotCompleted ? '#9CF5FF' : '#FFFFFF'}
+                  />
+                  <Text style={styles.tapButtonText}>
+                    {activeSlotCompleted ? 'Slot Complete' : `Tap ${selectedAmount} mL`}
+                  </Text>
+                </GradientFrame>
+              </TouchableOpacity>
+            </Animated.View>
           </View>
 
           <ScrollView
@@ -649,7 +763,11 @@ const HomeScreen = () => {
             })}
           </ScrollView>
 
-          <TapEnableStrip activeSlot={activeSlot} completedSlots={dailyState.completedSlots} />
+          <TapEnableStrip
+            activeSlot={activeSlot}
+            completedSlots={dailyState.completedSlots}
+            onInfoPress={() => setActiveInfoKey('slots')}
+          />
 
         </View>
 
@@ -705,57 +823,12 @@ const HomeScreen = () => {
           </View>
         </View>
 
-        <View style={styles.slotsCard}>
-          <InfoButton onPress={() => setActiveInfoKey('slots')} />
-          <View style={styles.sectionHeader}>
-            <Text style={styles.slotsTitle}>Today's Slots</Text>
-          </View>
-          <View style={styles.slotCardsRow}>
-            {slotOrder.map((slot, index) => {
-              const completed = dailyState.completedSlots.includes(slot);
-              const isCurrent = slot === activeSlot && !completed;
-              const slotImage = slot === 'morning'
-                ? require('../assets/morning.png')
-                : slot === 'afternoon'
-                  ? require('../assets/afternoon.png')
-                  : require('../assets/evening.png');
-
-              return (
-                <View
-                  key={slot}
-                  style={[
-                    styles.slotCard,
-                    completed && styles.slotCardCompleted,
-                    isCurrent && styles.slotCardCurrent,
-                  ]}
-                >
-                  <Image source={slotImage} style={styles.slotImage} />
-                  <View style={styles.slotCardText}>
-                    <Text style={[styles.slotCardTitle, completed && styles.slotDoneText]}>{slotMeta[slot].title}</Text>
-                    <Text style={styles.slotStatus}>{completed ? 'Completed' : 'Pending'}</Text>
-                    {completed && (
-                      <View style={styles.rewardRow}>
-                        <Text style={styles.rewardText}>+25</Text>
-                        <Image source={require('../assets/ChatGPT_Image_May_12__2026__03_38_40_PM-removebg-preview.png')} style={styles.rewardCoin} />
-                      </View>
-                    )}
-                  </View>
-                  <View style={[styles.slotBadge, completed && styles.slotBadgeDone]}>
-                    {completed && <Feather name="check" size={isWideHome ? 16 : 16} color="#FFFFFF" />}
-                  </View>
-                  {index < 2 && <View style={styles.dottedConnector} />}
-                </View>
-              );
-            })}
-          </View>
-        </View>
-
         <TouchableOpacity
           style={styles.challengeCard}
           activeOpacity={0.88}
           onPress={() => navigation.navigate('Competition' as never)}
         >
-          <InfoButton onPress={() => setActiveInfoKey('competition')} />
+          <InfoButton onPress={() => setActiveInfoKey('competition')} style={styles.challengeInfoButton} />
           <View style={styles.challengeGlow} pointerEvents="none" />
           <View style={styles.challengeArtworkClip} pointerEvents="none">
             <Image source={require('../assets/challenge.png')} style={styles.challengeArtwork} resizeMode="contain" />
@@ -766,9 +839,21 @@ const HomeScreen = () => {
             </View>
             <Text style={styles.challengeSub}>Challenge friends and earn amazing rewards.</Text>
           </View>
-          <View style={styles.joinButton}>
-            <Text style={styles.joinButtonText}>Join Now</Text>
-          </View>
+          <Animated.View style={[styles.joinButtonWrap, { transform: [{ scale: joinButtonScale }] }]}>
+            <Animated.View
+              pointerEvents="none"
+              style={[
+                styles.joinButtonPulse,
+                {
+                  opacity: joinPulseOpacity,
+                  transform: [{ scale: joinPulseScale }],
+                },
+              ]}
+            />
+            <View style={styles.joinButton}>
+              <Text style={styles.joinButtonText}>Join Now</Text>
+            </View>
+          </Animated.View>
         </TouchableOpacity>
 
         <View style={styles.leaderboardCard}>
@@ -776,7 +861,7 @@ const HomeScreen = () => {
           <View style={styles.leaderboardCopy}>
             <View style={styles.leaderboardTitleRow}>
               <MaterialCommunityIcons name="crown" size={isWideHome ? 24 : 18} color="#FFD15A" />
-              <Text style={styles.leaderboardTitle}>Join Competition</Text>
+              <Text style={styles.leaderboardTitle}>Leaderboard</Text>
             </View>
             <Text style={styles.leaderboardSub}>Compete with friends and others to earn top rewards!</Text>
             <TouchableOpacity
@@ -895,8 +980,8 @@ const HomeScreen = () => {
   );
 };
 
-const InfoButton = ({ onPress }: { onPress: () => void }) => (
-  <TouchableOpacity activeOpacity={0.82} onPress={onPress} style={styles.infoButton}>
+const InfoButton = ({ onPress, style }: { onPress: () => void; style?: StyleProp<ViewStyle> }) => (
+  <TouchableOpacity activeOpacity={0.82} onPress={onPress} style={[styles.infoButton, style]}>
     <Feather name="info" size={15} color="#9cc5ff" />
   </TouchableOpacity>
 );
@@ -1229,22 +1314,24 @@ const slotEnableImages: Record<SlotKey, ImageSourcePropType> = {
 const TapEnableStrip = ({
   activeSlot,
   completedSlots,
+  onInfoPress,
 }: {
   activeSlot: SlotKey;
   completedSlots: SlotKey[];
+  onInfoPress: () => void;
 }) => {
   const activeIndex = slotOrder.indexOf(activeSlot);
 
   return (
     <View style={styles.tapEnablePanel}>
       <View style={styles.tapEnableHeader}>
-        <MaterialCommunityIcons name="clock-outline" size={18} color="#B8C8F0" />
         <Text style={styles.tapEnableTitle}>Tap Enable Time</Text>
+        <InfoButton onPress={onInfoPress} style={styles.tapEnableInfoButton} />
       </View>
       <View style={styles.tapEnableTrack}>
         {slotOrder.map((slot, index) => {
           const completed = completedSlots.includes(slot);
-          const active = slot === activeSlot;
+          const active = slot === activeSlot && !completed;
           const locked = index > activeIndex && !completed;
 
           return (
@@ -1264,17 +1351,27 @@ const TapEnableStrip = ({
                   resizeMode="contain"
                 />
                 <View style={styles.tapEnableTextBlock}>
-                  <Text style={styles.tapEnableSlotTitle}>{slotMeta[slot].title}</Text>
+                  <Text style={[styles.tapEnableSlotTitle, completed && styles.tapEnableSlotTitleDone]}>{slotMeta[slot].title}</Text>
                   <Text style={styles.tapEnableSlotTime}>{slotTimeLabels[slot]}</Text>
                 </View>
               </View>
               <View style={styles.tapEnableStatusRow}>
-                <View style={[styles.tapEnableStatusDot, completed && styles.tapEnableStatusDone]}>
-                  <MaterialCommunityIcons name={completed ? 'check' : locked ? 'lock-outline' : 'timer-sand'} size={9} color={completed ? '#78F4FF' : '#AEB8DD'} />
-                </View>
                 <Text style={[styles.tapEnableStatusText, completed && styles.tapEnableStatusTextDone]}>
-                  {completed ? 'Completed' : locked ? `Unlocks at ${slotTimeLabels[slot].split(' - ')[0]}` : 'Tap enabled'}
+                  {completed ? 'Completed' : locked ? 'Pending' : 'Tap enabled'}
                 </Text>
+                {completed && (
+                  <View style={styles.tapEnableRewardRow}>
+                    <Text style={styles.tapEnableRewardText}>+25</Text>
+                    <Image source={require('../assets/ChatGPT_Image_May_12__2026__03_38_40_PM-removebg-preview.png')} style={styles.tapEnableRewardCoin} />
+                  </View>
+                )}
+              </View>
+              <View style={[styles.tapEnableBadge, completed && styles.tapEnableBadgeDone]}>
+                {completed ? (
+                  <Feather name="check" size={isWideHome ? 14 : 11} color="#FFFFFF" />
+                ) : (
+                  <MaterialCommunityIcons name={locked ? 'lock-outline' : 'timer-sand'} size={isWideHome ? 13 : 10} color="#8BA6E6" />
+                )}
               </View>
             </View>
           );
@@ -1372,6 +1469,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.45,
     shadowRadius: 14,
     width: 42,
+  },
+  trophyButtonWrap: {
+    height: 42,
+    position: 'relative',
+    width: 42,
+  },
+  trophyButton: {
+    borderColor: '#FFD15A',
+    shadowColor: '#FFD15A',
+    shadowOpacity: 0.62,
+    shadowRadius: 16,
+  },
+  trophyPulse: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 209, 90, 0.22)',
+    borderColor: 'rgba(255, 209, 90, 0.74)',
+    borderRadius: 21,
+    borderWidth: 1,
   },
   alertDot: {
     backgroundColor: '#FF375F',
@@ -1773,6 +1888,22 @@ const styles = StyleSheet.create({
     shadowRadius: 14,
     width: isWideHome ? 162 : 118,
   },
+  tapButtonWrap: {
+    flexShrink: 0,
+    minHeight: isWideHome ? 70 : 54,
+    position: 'relative',
+    width: isWideHome ? 162 : 118,
+  },
+  tapButtonPulse: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(25, 201, 255, 0.22)',
+    borderColor: 'rgba(131, 233, 255, 0.72)',
+    borderRadius: isWideHome ? 18 : 15,
+    borderWidth: 1,
+    shadowColor: '#19C9FF',
+    shadowOpacity: 0.7,
+    shadowRadius: 18,
+  },
   tapButtonGradient: {
     alignItems: 'center',
     flex: 1,
@@ -1827,109 +1958,144 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   tapEnablePanel: {
-    backgroundColor: 'rgba(2,8,28,0.72)',
-    borderColor: '#182748',
-    borderRadius: 14,
+    backgroundColor: '#0E0B2E',
+    borderColor: '#3E2078',
+    borderRadius: 18,
     borderWidth: 1,
-    marginTop: isWideHome ? 12 : 10,
-    padding: isWideHome ? 10 : 8,
+    marginTop: isWideHome ? 14 : 12,
+    paddingHorizontal: isWideHome ? 14 : 10,
+    paddingVertical: isWideHome ? 14 : 11,
   },
   tapEnableHeader: {
     alignItems: 'center',
     flexDirection: 'row',
-    gap: 6,
-    marginBottom: 7,
+    justifyContent: 'space-between',
+    marginBottom: isWideHome ? 14 : 11,
+  },
+  tapEnableInfoButton: {
+    position: 'relative',
+    right: 0,
+    top: 0,
   },
   tapEnableTitle: {
-    color: '#C7D3EF',
-    fontSize: isWideHome ? 11 : 10,
+    color: '#FFFFFF',
+    fontSize: isWideHome ? 19 : 12,
     fontWeight: '900',
-    textTransform: 'uppercase',
   },
   tapEnableTrack: {
     flexDirection: 'row',
-    gap: isWideHome ? 7 : 5,
+    gap: isWideHome ? 12 : 8,
   },
   tapEnableSlot: {
-    alignItems: 'stretch',
-    backgroundColor: 'rgba(7,14,38,0.88)',
-    borderColor: '#27304C',
-    borderRadius: 10,
+    alignItems: 'center',
+    backgroundColor: '#071333',
+    borderColor: '#082F75',
+    borderRadius: 14,
     borderWidth: 1,
     flex: 1,
-    gap: 6,
-    minHeight: isWideHome ? 74 : 64,
-    paddingHorizontal: isWideHome ? 8 : 5,
-    paddingVertical: isWideHome ? 8 : 6,
+    gap: isWideHome ? 9 : 5,
+    minHeight: isWideHome ? 104 : 78,
+    overflow: 'visible',
+    paddingHorizontal: isWideHome ? 10 : 6,
+    paddingVertical: isWideHome ? 9 : 7,
   },
   tapEnableSlotDone: {
-    borderColor: '#BD3DFF',
-    backgroundColor: 'rgba(85,20,130,0.42)',
+    backgroundColor: '#062C28',
+    borderColor: '#0B694F',
   },
   tapEnableSlotActive: {
-    borderColor: '#278BFF',
-    shadowColor: '#1688FF',
+    backgroundColor: '#06163C',
+    borderColor: '#053B9A',
+    shadowColor: '#1688ff',
     shadowOpacity: 0.45,
-    shadowRadius: 10,
+    shadowRadius: 12,
   },
   tapEnableSlotLocked: {
-    opacity: 0.66,
+    opacity: 0.72,
   },
   tapEnableMainRow: {
     alignItems: 'center',
-    flexDirection: 'row',
-    gap: isWideHome ? 7 : 5,
+    gap: isWideHome ? 7 : 4,
+    width: '100%',
   },
   tapEnableImage: {
-    height: isWideHome ? 30 : 24,
-    width: isWideHome ? 36 : 28,
+    alignSelf: 'center',
+    height: isWideHome ? 44 : 26,
+    width: isWideHome ? 44 : 26,
   },
   tapEnableImageLocked: {
     opacity: 0.72,
   },
   tapEnableTextBlock: {
-    flex: 1,
+    alignItems: 'center',
     minWidth: 0,
+    width: '100%',
   },
   tapEnableSlotTitle: {
-    color: '#EEF3FF',
-    fontSize: isWideHome ? 12 : 10,
+    color: '#D6DDF6',
+    fontSize: isWideHome ? 16 : 10,
     fontWeight: '900',
+    textAlign: 'center',
+  },
+  tapEnableSlotTitleDone: {
+    color: '#27E99A',
   },
   tapEnableSlotTime: {
     color: '#AEB8DD',
-    fontSize: isWideHome ? 9 : 7,
+    fontSize: isWideHome ? 10 : 7,
     fontWeight: '700',
-    marginTop: 2,
+    marginTop: isWideHome ? 5 : 3,
+    textAlign: 'center',
   },
   tapEnableStatusRow: {
     alignItems: 'center',
-    borderTopColor: 'rgba(77,95,145,0.22)',
-    borderTopWidth: 1,
-    flexDirection: 'row',
-    gap: 6,
+    gap: isWideHome ? 5 : 3,
     justifyContent: 'center',
-    paddingTop: 6,
-  },
-  tapEnableStatusDot: {
-    alignItems: 'center',
-    borderColor: '#506088',
-    borderRadius: 999,
-    borderWidth: 1,
-    height: 16,
-    justifyContent: 'center',
-    width: 16,
-  },
-  tapEnableStatusDone: {
-    borderColor: '#35D9FF',
+    minHeight: isWideHome ? 36 : 24,
   },
   tapEnableStatusText: {
-    color: '#AEB8DD',
-    fontSize: isWideHome ? 9 : 7,
+    color: '#FFFFFF',
+    fontSize: isWideHome ? 12 : 8,
     fontWeight: '800',
+    textAlign: 'center',
   },
   tapEnableStatusTextDone: {
-    color: '#27C9FF',
+    color: '#FFFFFF',
+  },
+  tapEnableRewardRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 3,
+  },
+  tapEnableRewardText: {
+    color: '#FFFFFF',
+    fontSize: isWideHome ? 13 : 9,
+    fontWeight: '900',
+  },
+  tapEnableRewardCoin: {
+    height: isWideHome ? 18 : 12,
+    width: isWideHome ? 18 : 12,
+  },
+  tapEnableBadge: {
+    alignItems: 'center',
+    borderColor: '#214895',
+    borderRadius: isWideHome ? 16 : 12,
+    borderStyle: 'dashed',
+    borderWidth: 1.5,
+    height: isWideHome ? 30 : 22,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: isWideHome ? 7 : 4,
+    top: isWideHome ? -9 : -7,
+    width: isWideHome ? 30 : 22,
+  },
+  tapEnableBadgeDone: {
+    backgroundColor: '#20D989',
+    borderColor: '#11BF77',
+    borderStyle: 'solid',
+    shadowColor: '#20D989',
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
   },
   amountChipRow: {
     gap: isWideHome ? 9 : 7,
@@ -2261,129 +2427,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginTop: 10,
   },
-  slotsCard: {
-    backgroundColor: '#0E0B2E',
-    borderColor: '#3E2078',
-    borderRadius: 20,
-    borderWidth: 1,
-    marginTop: 18,
-    paddingHorizontal: isWideHome ? 18 : 12,
-    paddingVertical: isWideHome ? 18 : 14,
-  },
-  sectionHeader: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  slotsTitle: {
-    color: '#FFFFFF',
-    fontSize: isWideHome ? 22 : 12,
-    
-  },
-  howItWorksRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 5,
-  },
-  howItWorks: {
-    color: '#B6BCE0',
-    fontSize: isWideHome ? 14 : 10,
-  },
-  slotCardsRow: {
-    flexDirection: 'row',
-    gap: isWideHome ? 18 : 22,
-    marginTop: isWideHome ? 26 : 18,
-  },
-  slotCard: {
-    alignItems: 'center',
-    backgroundColor: '#071333',
-    borderColor: '#082F75',
-    borderRadius: 15,
-    borderWidth: 1,
-    flex: 1,
-    flexDirection: 'row',
-    gap: isWideHome ? 18 : 8,
-    minHeight: isWideHome ? 116 : 68,
-    overflow: 'visible',
-    paddingHorizontal: isWideHome ? 14 : 9,
-    paddingVertical: isWideHome ? 6 : 1,
-  },
-  slotCardCompleted: {
-    borderColor: '#0B694F',
-    backgroundColor: '#062C28',
-  },
-  slotCardCurrent: {
-    borderColor: '#053B9A',
-    backgroundColor: '#06163C',
-  },
-  slotCardText: {
-    flex: 1,
-    minWidth: 0,
-  },
-  slotImage: {
-    height: isWideHome ? 58 : 20,
-    width: isWideHome ? 58 : 20,
-  },
-  slotCardTitle: {
-    color: '#D6DDF6',
-    fontSize: isWideHome ? 20 : 10,
-    fontWeight: '900',
-  },
-  slotDoneText: {
-    color: '#27E99A',
-  },
-  slotStatus: {
-    color: '#FFFFFF',
-    fontSize: isWideHome ? 16 : 8,
-    fontWeight: '700',
-    marginTop: isWideHome ? 12 : 6,
-  },
-  rewardRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 4,
-    marginTop: isWideHome ? 10 : 5,
-  },
-  rewardText: {
-    color: '#FFFFFF',
-    fontSize: isWideHome ? 18 : 11,
-    fontWeight: '900',
-  },
-  rewardCoin: {
-    height: isWideHome ? 24 : 15,
-    width: isWideHome ? 24 : 15,
-  },
-  slotBadge: {
-    alignItems: 'center',
-    borderColor: '#214895',
-    borderRadius: isWideHome ? 26 : 17,
-    borderStyle: 'dashed',
-    borderWidth: 2,
-    height: isWideHome ? 52 : 20,
-    justifyContent: 'center',
-    position: 'absolute',
-    right: isWideHome ? 16 : 1,
-    top: isWideHome ? 22 : -10,
-    width: isWideHome ? 52 : 20,
-  },
-  slotBadgeDone: {
-    backgroundColor: '#20D989',
-    borderColor: '#11BF77',
-    borderStyle: 'solid',
-    shadowColor: '#20D989',
-    shadowOpacity: 0.5,
-    shadowRadius: 10,
-  },
-  dottedConnector: {
-    borderColor: '#8850FF',
-    borderStyle: 'dotted',
-    borderTopWidth: 3,
-    position: 'absolute',
-    right: isWideHome ? -24 : -22,
-    top: isWideHome ? 58 : 34,
-    width: isWideHome ? 28 : 20,
-    zIndex: 3,
-  },
   todayProgressCard: {
     backgroundColor: '#0A1230',
     borderColor: '#334178',
@@ -2517,6 +2560,10 @@ const styles = StyleSheet.create({
     minWidth: 0,
     zIndex: 2,
   },
+  challengeInfoButton: {
+    right: isWideHome ? 14 : 10,
+    top: isWideHome ? 12 : 9,
+  },
   challengeTitle: {
     color: '#FFFFFF',
     fontSize: isWideHome ? 25 : 16,
@@ -2535,10 +2582,27 @@ const styles = StyleSheet.create({
     borderRadius: isWideHome ? 22 : 17,
     borderWidth: 1,
     justifyContent: 'center',
-    marginLeft: isWideHome ? 18 : 10,
     minHeight: isWideHome ? 54 : 38,
     paddingHorizontal: isWideHome ? 28 : 14,
     zIndex: 2,
+  },
+  joinButtonWrap: {
+    justifyContent: 'center',
+    marginLeft: isWideHome ? 18 : 10,
+    marginRight: isWideHome ? 38 : 26,
+    minHeight: isWideHome ? 54 : 38,
+    position: 'relative',
+    zIndex: 2,
+  },
+  joinButtonPulse: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(99, 218, 255, 0.28)',
+    borderColor: 'rgba(255, 255, 255, 0.78)',
+    borderRadius: isWideHome ? 22 : 17,
+    borderWidth: 1,
+    shadowColor: '#63DAFF',
+    shadowOpacity: 0.78,
+    shadowRadius: 18,
   },
   joinButtonText: {
     color: '#FFFFFF',

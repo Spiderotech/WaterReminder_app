@@ -13,7 +13,6 @@ export interface UserProfile {
   climate: string;
   country?: string;
   countryCode?: string;
-  city?: string;
 }
 
 const USER_PROFILE_KEY = 'userProfile';

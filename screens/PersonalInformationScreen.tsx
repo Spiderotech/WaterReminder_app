@@ -16,7 +16,6 @@ import {
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { City, State } from 'country-state-city';
 import CountryPicker, { Country, CountryCode, Flag } from 'react-native-country-picker-modal';
 import LinearGradient from 'react-native-linear-gradient';
 import { SafeAreaView } from '../components/AppSafeAreaView';
@@ -38,7 +37,6 @@ type ProfileForm = {
   climate?: string;
   country?: string;
   countryCode?: CountryCode;
-  city?: string;
 };
 
 type FieldKey = keyof ProfileForm | 'hydrationGoal';
@@ -146,7 +144,6 @@ const sections: SectionConfig[] = [
     fields: [
       { key: 'username', label: 'Username', subtitle: 'Shown across DoraDrink', icon: 'account-edit-outline', type: 'text' },
       { key: 'gender', label: 'Gender', subtitle: 'Used for goal calculation', icon: 'gender-male-female', type: 'choice', options: genderOptions },
-      { key: 'city', label: 'City', subtitle: 'Local context', icon: 'city-variant-outline', type: 'location' },
       { key: 'country', label: 'Country', subtitle: 'Profile location', icon: 'map-marker-outline', type: 'location' },
     ],
   },
@@ -190,7 +187,6 @@ const defaultProfile: ProfileForm = {
   sleepTime: '23:00',
   activityLevel: 'Medium',
   climate: 'Temperate',
-  city: 'Ahmedabad',
   country: 'India',
   countryCode: 'IN',
 };
@@ -287,7 +283,7 @@ const PersonalInformationScreen = ({ navigation }) => {
     setFormData(nextProfile);
   };
 
-  const saveLocation = async (updates: Pick<ProfileForm, 'country' | 'countryCode' | 'city'>) => {
+  const saveLocation = async (updates: Pick<ProfileForm, 'country' | 'countryCode'>) => {
     const updatedProfile = await updateUserProfile(updates as any);
     const nextProfile = { ...defaultProfile, ...updatedProfile, ...updates } as ProfileForm;
     setFormData(nextProfile);
@@ -407,7 +403,7 @@ const ProfileCard = ({
     </GradientFrame>
     <View style={styles.profileCopy}>
       <Text style={styles.profileName}>{formData.username}</Text>
-      <Text style={styles.profileLocation}>{[formData.city, formData.country].filter(Boolean).join(', ') || 'Ahmedabad, India'}</Text>
+      <Text style={styles.profileLocation}>{formData.country || 'India'}</Text>
       <View style={styles.profileMetaRow}>
         <View style={styles.metaPill}>
           <MaterialCommunityIcons name="water" size={17} color="#35d9ff" />
@@ -511,14 +507,12 @@ const LocationModal = ({
   visible: boolean;
   formData: ProfileForm;
   onClose: () => void;
-  onSave: (updates: Pick<ProfileForm, 'country' | 'countryCode' | 'city'>) => Promise<void>;
+  onSave: (updates: Pick<ProfileForm, 'country' | 'countryCode'>) => Promise<void>;
 }) => {
   const [countryPickerVisible, setCountryPickerVisible] = useState(false);
-  const [citySearch, setCitySearch] = useState('');
   const [draftLocation, setDraftLocation] = useState({
     country: formData.country || 'India',
     countryCode: formData.countryCode || 'IN',
-    city: formData.city || 'Ahmedabad, Gujarat',
   });
   const countryCode = draftLocation.countryCode || 'IN';
 
@@ -528,50 +522,11 @@ const LocationModal = ({
     setDraftLocation({
       country: formData.country || 'India',
       countryCode: formData.countryCode || 'IN',
-      city: formData.city || 'Ahmedabad, Gujarat',
     });
-    setCitySearch('');
-  }, [formData.city, formData.country, formData.countryCode, visible]);
-
-  const cities = useMemo(() => {
-    const states = State.getStatesOfCountry(countryCode);
-    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
-      acc[state.isoCode] = state.name;
-      return acc;
-    }, {});
-
-    return (City.getCitiesOfCountry(countryCode) || [])
-      .map(city => ({
-        key: `${city.name}-${city.stateCode}`,
-        label: stateNameByCode[city.stateCode]
-          ? `${city.name}, ${stateNameByCode[city.stateCode]}`
-          : city.name,
-      }))
-      .filter((city, index, list) => list.findIndex(item => item.label === city.label) === index)
-      .slice(0, 500);
-  }, [countryCode]);
-
-  const filteredCities = useMemo(() => {
-    const query = citySearch.trim().toLowerCase();
-
-    if (!query) return cities;
-
-    return cities.filter(city => city.label.toLowerCase().includes(query));
-  }, [cities, citySearch]);
+  }, [formData.country, formData.countryCode, visible]);
 
   const handleCountrySelect = (country: Country) => {
     const nextCountryCode = country.cca2;
-    const states = State.getStatesOfCountry(nextCountryCode);
-    const stateNameByCode = states.reduce<Record<string, string>>((acc, state) => {
-      acc[state.isoCode] = state.name;
-      return acc;
-    }, {});
-    const firstCity = City.getCitiesOfCountry(nextCountryCode)?.[0];
-    const nextCity = firstCity
-      ? stateNameByCode[firstCity.stateCode]
-        ? `${firstCity.name}, ${stateNameByCode[firstCity.stateCode]}`
-        : firstCity.name
-      : '';
     const countryName = typeof country.name === 'string'
       ? country.name
       : country.name.common || nextCountryCode;
@@ -579,9 +534,7 @@ const LocationModal = ({
     setDraftLocation({
       country: countryName,
       countryCode: nextCountryCode,
-      city: nextCity,
     });
-    setCitySearch('');
     setCountryPickerVisible(false);
   };
 
@@ -598,7 +551,7 @@ const LocationModal = ({
             <View style={styles.locationHeader}>
               <View>
                 <Text style={styles.modalTitle}>Edit Location</Text>
-                <Text style={styles.modalSubtitle}>Choose country and city like onboarding.</Text>
+                <Text style={styles.modalSubtitle}>Choose your country.</Text>
               </View>
               <TouchableOpacity activeOpacity={0.85} onPress={onClose} style={styles.locationClose}>
                 <Feather name="x" size={22} color="#ffffff" />
@@ -630,48 +583,6 @@ const LocationModal = ({
             </View>
             <Flag countryCode={countryCode} withEmoji withFlagButton flagSize={28} />
           </TouchableOpacity>
-
-          <View style={styles.citySearchBox}>
-            <Feather name="search" size={20} color="#35d9ff" />
-            <TextInput
-              value={citySearch}
-              onChangeText={setCitySearch}
-              placeholder="Search city or state"
-              placeholderTextColor="#7f91c6"
-              selectionColor="#35d9ff"
-              style={styles.citySearchInput}
-            />
-            {citySearch ? (
-              <TouchableOpacity onPress={() => setCitySearch('')}>
-                <Feather name="x-circle" size={20} color="#7f91c6" />
-              </TouchableOpacity>
-            ) : null}
-          </View>
-
-          <FlatList
-            data={filteredCities}
-            keyExtractor={item => item.key}
-            style={styles.cityList}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const selected = draftLocation.city === item.label;
-
-              return (
-                <TouchableOpacity
-                  activeOpacity={0.84}
-                  onPress={() => setDraftLocation(current => ({ ...current, city: item.label }))}
-                  style={[styles.cityOption, selected && styles.cityOptionSelected]}
-                >
-                  <View style={styles.cityOptionIcon}>
-                    <MaterialCommunityIcons name="city-variant-outline" size={19} color="#35d9ff" />
-                  </View>
-                  <Text style={styles.cityOptionText}>{item.label}</Text>
-                  {selected ? <Feather name="check" size={20} color="#35d9ff" /> : null}
-                </TouchableOpacity>
-              );
-            }}
-            ListEmptyComponent={<Text style={styles.cityEmptyText}>No city found for this search.</Text>}
-          />
 
             <View style={styles.modalActions}>
               <TouchableOpacity activeOpacity={0.85} onPress={onClose} style={styles.cancelButton}>
@@ -1177,64 +1088,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     marginTop: 3,
-  },
-  citySearchBox: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(7,26,61,0.9)',
-    borderColor: '#284e87',
-    borderRadius: 15,
-    borderWidth: 1,
-    flexDirection: 'row',
-    height: 50,
-    marginTop: 14,
-    paddingHorizontal: 12,
-  },
-  citySearchInput: {
-    color: '#ffffff',
-    flex: 1,
-    fontSize: 14,
-    fontWeight: '800',
-    marginLeft: 8,
-  },
-  cityList: {
-    marginTop: 12,
-    maxHeight: 290,
-  },
-  cityOption: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(7,26,61,0.66)',
-    borderColor: '#254e85',
-    borderRadius: 14,
-    borderWidth: 1,
-    flexDirection: 'row',
-    marginBottom: 8,
-    minHeight: 54,
-    paddingHorizontal: 10,
-  },
-  cityOptionSelected: {
-    backgroundColor: 'rgba(22,184,255,0.16)',
-    borderColor: '#35d9ff',
-  },
-  cityOptionIcon: {
-    alignItems: 'center',
-    backgroundColor: 'rgba(22,184,255,0.12)',
-    borderRadius: 11,
-    height: 34,
-    justifyContent: 'center',
-    marginRight: 10,
-    width: 34,
-  },
-  cityOptionText: {
-    color: '#ffffff',
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '800',
-  },
-  cityEmptyText: {
-    color: '#aeb8d5',
-    fontSize: 13,
-    paddingVertical: 22,
-    textAlign: 'center',
   },
   modalActions: {
     flexDirection: 'row',

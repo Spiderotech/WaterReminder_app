@@ -518,8 +518,8 @@ const WalletRankRow = ({ state }: { state: DigitalState }) => (
 );
 
 const getRankSubtext = (rank: number | null, participants: number) => {
-  if (!rank) return 'Join to rank';
-  if (!participants) return 'Leaderboard live';
+  if (!rank) return '';
+  if (!participants) return '';
 
   const percentile = Math.max(1, Math.round((rank / Math.max(participants, 1)) * 100));
   return `Top ${percentile}%`;
@@ -545,10 +545,7 @@ const SlotTimeline = ({ completedSlots }: { completedSlots: SlotKey[] }) => (
   <GradientFrame colors={['#0E0B2E', '#061333']} style={styles.slotsCard} contentStyle={styles.slotsCardContent}>
     <View style={styles.sectionHeader}>
       <Text style={styles.slotsTitle}>Today&apos;s Slots</Text>
-      <View style={styles.howItWorksRow}>
-        <Text style={styles.howItWorks}>How it works?</Text>
-        <Feather name="info" size={14} color="#9B9FDE" />
-      </View>
+     
     </View>
     <View style={styles.slotCardsRow}>
       {(['morning', 'afternoon', 'evening'] as SlotKey[]).map((slot, index) => {
