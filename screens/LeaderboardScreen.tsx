@@ -1323,6 +1323,7 @@ const styles = StyleSheet.create({
   ctaCardContent: {
     alignItems: 'center',
     flexDirection: 'row',
+    flexWrap: 'wrap',
     minHeight: 140,
     padding: 12,
     position: 'relative',
@@ -1359,6 +1360,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
   ctaTrophy: {
+    flexShrink: 0,
     height: 86,
     marginRight: 8,
     marginTop: 14,
@@ -1366,7 +1368,7 @@ const styles = StyleSheet.create({
   },
   ctaCopy: {
     flex: 1,
-    minWidth: 0,
+    minWidth: 150,
   },
   ctaTitle: {
     color: '#ffffff',
@@ -1401,14 +1403,18 @@ const styles = StyleSheet.create({
   },
   joinNowButton: {
     alignItems: 'center',
+    alignSelf: 'stretch',
     backgroundColor: '#7135e9',
     borderColor: '#b37aff',
     borderRadius: 12,
     borderWidth: 1,
+    flexGrow: 1,
+    flexShrink: 1,
     height: 42,
     justifyContent: 'center',
-    marginLeft: 8,
-    minWidth: 100,
+    marginLeft: 0,
+    marginTop: 12,
+    minWidth: 180,
     paddingHorizontal: 12,
   },
   joinNowButtonDisabled: {

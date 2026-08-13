@@ -28,7 +28,7 @@ import { getRewardLedger } from '../services/rewardLedgerService';
 import { getStreak, StreakState } from '../services/streakService';
 import { getWallet, Wallet } from '../services/walletService';
 import { getActiveCompetitionLeaderboard } from '../services/competitionService';
-import { deleteBackendAccount } from '../services/backendAuthService';
+import { deleteBackendAccount, getBackendAuthMode, getBackendUserId } from '../services/backendAuthService';
 
 type RootStackParamList = Record<string, object | undefined>;
 
@@ -44,6 +44,9 @@ type ProfileState = {
   username: string;
   country: string;
   avatarSource: ImageSourcePropType;
+  accountConnected: boolean;
+  accountLabel: string;
+  accountMode: 'google' | 'backend' | 'local';
   streak: StreakState;
   wallet: Wallet;
   lifetimeWaterLiters: number;
@@ -125,6 +128,9 @@ const defaultProfileState: ProfileState = {
   username: 'user',
   country: 'India',
   avatarSource: images.avatar,
+  accountConnected: false,
+  accountLabel: 'Local profile',
+  accountMode: 'local',
   streak: { current: 0, best: 0, totalCompletedDays: 0 },
   wallet: { coins: 0, diamonds: 0, energyLevel: 7 },
   lifetimeWaterLiters: 0,
@@ -228,6 +234,7 @@ const ProfileScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
   const tabTheme = useMainTabTheme();
   const [openSection, setOpenSection] = useState<string | null>(null);
   const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [deleteInProgress, setDeleteInProgress] = useState(false);
   const [profileState, setProfileState] = useState<ProfileState>(defaultProfileState);
 
@@ -244,24 +251,31 @@ const ProfileScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
       let isActive = true;
 
       const loadProfileState = async () => {
-        const [profile, streak, wallet, logs, ledger, leaderboard] = await Promise.all([
+        const [profile, streak, wallet, logs, ledger, leaderboard, backendUserId, backendAuthMode] = await Promise.all([
           getUserProfile(),
           getStreak(),
           getWallet(),
           getAllLogs(),
           getRewardLedger(),
           getActiveCompetitionLeaderboard(1).catch(() => null),
+          getBackendUserId(),
+          getBackendAuthMode(),
         ]);
 
         if (!isActive) return;
 
         const coinsEarned = ledger.reduce((sum, entry) => sum + Math.max(entry.coins || 0, 0), 0);
         const diamondsEarned = ledger.reduce((sum, entry) => sum + Math.max(entry.diamonds || 0, 0), 0);
+        const isGoogleConnected = Boolean(backendUserId && backendAuthMode === 'firebase');
+        const isBackendConnected = Boolean(backendUserId);
 
         setProfileState({
           username: profile?.username || defaultProfileState.username,
           country: profile?.country || defaultProfileState.country,
           avatarSource: getProfileAvatarSource(profile?.avatar, profile?.gender),
+          accountConnected: isBackendConnected,
+          accountLabel: isGoogleConnected ? 'Google connected' : isBackendConnected ? 'Backend synced' : 'Local profile',
+          accountMode: isGoogleConnected ? 'google' : isBackendConnected ? 'backend' : 'local',
           streak,
           wallet,
           lifetimeWaterLiters: logs.reduce((sum, log) => sum + log.amount, 0) / 1000,
@@ -336,35 +350,28 @@ const ProfileScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
 
   const handleDeleteAccount = () => {
     if (deleteInProgress) return;
+    setDeleteModalVisible(true);
+  };
 
-    Alert.alert(
-      'Delete account?',
-      'This will delete your DoraDrink account data and clear local app data from this device.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleteInProgress(true);
-            try {
-              await deleteBackendAccount();
-              await cancelAllHydrationReminders();
-              await AsyncStorage.clear();
-              navigation.reset({
-                index: 0,
-                routes: [{ name: 'Onboarding' }],
-              });
-            } catch (error) {
-              const message = error instanceof Error ? error.message : 'Unable to delete your account right now.';
-              Alert.alert('Delete account failed', message);
-            } finally {
-              setDeleteInProgress(false);
-            }
-          },
-        },
-      ],
-    );
+  const confirmDeleteAccount = async () => {
+    if (deleteInProgress) return;
+
+    setDeleteInProgress(true);
+    try {
+      await deleteBackendAccount();
+      await cancelAllHydrationReminders();
+      await AsyncStorage.clear();
+      setDeleteModalVisible(false);
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' }],
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to delete your account right now.';
+      Alert.alert('Delete account failed', message);
+    } finally {
+      setDeleteInProgress(false);
+    }
   };
 
   return (
@@ -394,6 +401,14 @@ const ProfileScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
           onCancel={() => setResetModalVisible(false)}
           onReset={handleReset}
           sectionTitle={expandedSection?.title}
+        />
+        <DeleteAccountModal
+          visible={deleteModalVisible}
+          deleting={deleteInProgress}
+          onCancel={() => {
+            if (!deleteInProgress) setDeleteModalVisible(false);
+          }}
+          onDelete={confirmDeleteAccount}
         />
       </SafeAreaView>
     </LinearGradient>
@@ -444,6 +459,21 @@ const ProfileHero = ({ theme, profileState }: { theme: MainTabTheme; profileStat
       <View style={styles.infoLine}>
         <MaterialCommunityIcons name="calendar-month" size={18} color="#9ba7cf" />
         <Text style={[styles.infoText, { color: theme.mutedText }]}>Member since Mar 2025</Text>
+      </View>
+      <View style={[
+        styles.accountStatusPill,
+        profileState.accountMode === 'google' && styles.googleStatusPill,
+        profileState.accountMode === 'backend' && styles.backendStatusPill,
+      ]}>
+        <MaterialCommunityIcons
+          name={profileState.accountMode === 'google' ? 'google' : profileState.accountConnected ? 'cloud-check-outline' : 'cellphone'}
+          size={15}
+          color={profileState.accountConnected ? '#ffffff' : '#b8c2dc'}
+        />
+        <Text style={[
+          styles.accountStatusText,
+          !profileState.accountConnected && styles.localStatusText,
+        ]}>{profileState.accountLabel}</Text>
       </View>
     </View>
   </View>
@@ -556,6 +586,46 @@ const ResetModal = ({
             </TouchableOpacity>
             <TouchableOpacity activeOpacity={0.88} onPress={onReset} style={styles.resetButton}>
               <Text style={styles.resetText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
+        </GradientFrame>
+      </View>
+    </View>
+  </Modal>
+);
+
+const DeleteAccountModal = ({
+  visible,
+  deleting,
+  onCancel,
+  onDelete,
+}: {
+  visible: boolean;
+  deleting: boolean;
+  onCancel: () => void;
+  onDelete: () => void;
+}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <View style={styles.modalOverlay}>
+      <View style={styles.modalFrame}>
+        <GradientFrame colors={['#170b1d', '#07142e']} style={[styles.modalSurface, styles.modalCard]}>
+          <View style={styles.deleteModalIcon}>
+            <MaterialCommunityIcons name="account-remove-outline" size={31} color="#ff7586" />
+          </View>
+          <Text style={styles.modalTitle}>Delete Account?</Text>
+          <Text style={styles.modalText}>
+            This will delete your DoraDrink account data and clear all local app data from this device.
+          </Text>
+          <View style={styles.deleteWarningBox}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={18} color="#ffb6c0" />
+            <Text style={styles.deleteWarningText}>This action cannot be undone.</Text>
+          </View>
+          <View style={styles.modalActions}>
+            <TouchableOpacity activeOpacity={0.88} onPress={onCancel} disabled={deleting} style={[styles.cancelButton, deleting && styles.disabledAction]}>
+              <Text style={styles.cancelText}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.88} onPress={onDelete} disabled={deleting} style={[styles.deleteButton, deleting && styles.disabledAction]}>
+              <Text style={styles.resetText}>{deleting ? 'Deleting...' : 'Delete'}</Text>
             </TouchableOpacity>
           </View>
         </GradientFrame>
@@ -710,6 +780,37 @@ const styles = StyleSheet.create({
     color: '#cbd3e7',
     fontSize: 12,
     marginLeft: 8,
+  },
+  accountStatusPill: {
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(35,49,79,0.82)',
+    borderColor: 'rgba(126,146,188,0.38)',
+    borderRadius: 14,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: 10,
+    maxWidth: '100%',
+    minHeight: 28,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+  googleStatusPill: {
+    backgroundColor: 'rgba(25,111,242,0.86)',
+    borderColor: '#67b7ff',
+  },
+  backendStatusPill: {
+    backgroundColor: 'rgba(27,130,95,0.78)',
+    borderColor: '#58e0a3',
+  },
+  accountStatusText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: '900',
+    marginLeft: 6,
+  },
+  localStatusText: {
+    color: '#b8c2dc',
   },
   flag: {
     fontSize: 14,
@@ -980,6 +1081,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     width: 56,
   },
+  deleteModalIcon: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,82,105,0.15)',
+    borderColor: 'rgba(255,117,134,0.45)',
+    borderRadius: 22,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
   modalTitle: {
     color: '#ffffff',
     fontSize: 19,
@@ -998,6 +1109,26 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 18,
     width: '100%',
+  },
+  deleteWarningBox: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,82,105,0.12)',
+    borderColor: 'rgba(255,117,134,0.32)',
+    borderRadius: 13,
+    borderWidth: 1,
+    flexDirection: 'row',
+    marginTop: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    width: '100%',
+  },
+  deleteWarningText: {
+    color: '#ffb6c0',
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '800',
+    lineHeight: 17,
+    marginLeft: 8,
   },
   cancelButton: {
     alignItems: 'center',
@@ -1018,6 +1149,19 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     justifyContent: 'center',
+  },
+  deleteButton: {
+    alignItems: 'center',
+    backgroundColor: '#d92d4b',
+    borderColor: '#ff7586',
+    borderRadius: 13,
+    borderWidth: 1,
+    flex: 1,
+    height: 44,
+    justifyContent: 'center',
+  },
+  disabledAction: {
+    opacity: 0.65,
   },
   cancelText: {
     color: '#d8e4ff',

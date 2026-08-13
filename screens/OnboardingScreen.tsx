@@ -439,6 +439,7 @@ const OnboardingScreen = ({ navigation }: any) => {
         style={styles.content}
         contentContainerStyle={styles.contentInner}
         showsVerticalScrollIndicator={false}
+        nestedScrollEnabled
       >
         {renderStep()}
       </ScrollView>
@@ -1391,15 +1392,14 @@ const TimeWheelColumn = <T extends string | number>({
     });
   }, [selectedIndex]);
 
-  const selectByOffset = (offsetY: number) => {
+  const finishScroll = (offsetY: number) => {
     const index = Math.max(0, Math.min(values.length - 1, Math.round(offsetY / TIME_ITEM_HEIGHT)));
-    if (index === lastSelectedIndexRef.current) return;
     lastSelectedIndexRef.current = index;
     onSelect(values[index]);
-  };
-
-  const finishScroll = (offsetY: number) => {
-    selectByOffset(offsetY);
+    scrollRef.current?.scrollTo({
+      y: index * TIME_ITEM_HEIGHT,
+      animated: true,
+    });
     isScrollingRef.current = false;
   };
 
@@ -1409,13 +1409,14 @@ const TimeWheelColumn = <T extends string | number>({
       style={styles.timeColumn}
       contentContainerStyle={styles.timeColumnContent}
       showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
       snapToInterval={TIME_ITEM_HEIGHT}
+      snapToAlignment="start"
       decelerationRate="fast"
       scrollEventThrottle={16}
       onScrollBeginDrag={() => {
         isScrollingRef.current = true;
       }}
-      onScroll={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}
       onMomentumScrollEnd={(event) => finishScroll(event.nativeEvent.contentOffset.y)}
       onScrollEndDrag={(event) => finishScroll(event.nativeEvent.contentOffset.y)}
     >
@@ -1517,6 +1518,10 @@ const MiniTimeColumn = <T extends string | number>({
   const selectByOffset = (offsetY: number) => {
     const index = Math.max(0, Math.min(values.length - 1, Math.round(offsetY / 28)));
     onSelect(values[index]);
+    scrollRef.current?.scrollTo({
+      y: index * 28,
+      animated: true,
+    });
   };
 
   return (
@@ -1525,7 +1530,9 @@ const MiniTimeColumn = <T extends string | number>({
       style={styles.miniTimeColumn}
       contentContainerStyle={styles.miniTimeColumnContent}
       showsVerticalScrollIndicator={false}
+      nestedScrollEnabled
       snapToInterval={28}
+      snapToAlignment="start"
       decelerationRate="fast"
       onMomentumScrollEnd={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}
       onScrollEndDrag={(event) => selectByOffset(event.nativeEvent.contentOffset.y)}

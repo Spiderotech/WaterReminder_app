@@ -263,6 +263,7 @@ const HomeScreen = () => {
   const coinSplashValues = React.useRef(coinSplashVectors.map(() => new Animated.Value(0))).current;
   const trophyPulseValue = React.useRef(new Animated.Value(0)).current;
   const tapPulseValue = React.useRef(new Animated.Value(0)).current;
+  const tapInProgressRef = React.useRef(false);
 
   const [intake, setIntake] = useState(0);
   const [goal, setGoal] = useState(2500);
@@ -277,11 +278,15 @@ const HomeScreen = () => {
   const [goalType, setGoalType] = useState('Smart Plan');
   const [wallet, setWallet] = useState<Wallet>({ coins: 0, diamonds: 0, energyLevel: 7 });
   const [dailyState, setDailyState] = useState<DailyHydrationState>({ completedSlots: [] });
+  const [dashboardReady, setDashboardReady] = useState(false);
+  const [dashboardLoading, setDashboardLoading] = useState(true);
+  const [tapInProgress, setTapInProgress] = useState(false);
   const [streak, setStreak] = useState<StreakState>({ current: 0, best: 0 });
   const [activeInfoKey, setActiveInfoKey] = useState<HomeInfoKey | null>(null);
   const [showCoinSplash, setShowCoinSplash] = useState(false);
   const [vouchers, setVouchers] = useState<UserVoucher[]>([]);
   const [activeVoucher, setActiveVoucher] = useState<UserVoucher | null>(null);
+  const [exitModalVisible, setExitModalVisible] = useState(false);
 
   const activeSlot = getActiveSlot();
   const safeGoal = Math.max(goal, 1);
@@ -303,8 +308,10 @@ const HomeScreen = () => {
   const remaining = Math.max(goal - intake, 0);
   const completedCount = dailyState.completedSlots.length;
   const activeSlotCompleted = dailyState.completedSlots.includes(activeSlot);
+  const tapDisabled = !dashboardReady || dashboardLoading || tapInProgress || activeSlotCompleted;
+  const showStoredDashboard = dashboardReady;
   const avatarSource = useMemo(() => getAvatarSource(profile), [profile]);
-  const firstName = profile?.name || profile?.fullName || profile?.username || 'Arjun';
+  const firstName = profile?.name || profile?.fullName || profile?.username || 'Username';
   const greetingCopy = useMemo(() => getHomeGreeting(), []);
 
   const loadWaterData = useCallback(async () => {
@@ -314,25 +321,31 @@ const HomeScreen = () => {
   }, []);
 
   const loadDashboard = useCallback(async () => {
-    const [storedProfile, storedGoal, storedGoalType, storedWallet, backendWallet, storedDailyState, storedStreak, storedVouchers] = await Promise.all([
-      getUserProfile(),
-      getHydrationGoal(),
-      getHydrationGoalTypeLabel(),
-      getWallet(),
-      refreshBackendWallet().catch(() => null),
-      getDailyHydrationState(),
-      getStreak(),
-      getMyVouchers().catch(() => []),
-    ]);
+    setDashboardLoading(true);
+    try {
+      const [storedProfile, storedGoal, storedGoalType, storedWallet, backendWallet, storedDailyState, storedStreak, storedVouchers] = await Promise.all([
+        getUserProfile(),
+        getHydrationGoal(),
+        getHydrationGoalTypeLabel(),
+        getWallet(),
+        refreshBackendWallet().catch(() => null),
+        getDailyHydrationState(),
+        getStreak(),
+        getMyVouchers().catch(() => []),
+      ]);
 
-    setProfile(storedProfile);
-    setGoal(storedGoal);
-    setGoalType(storedGoalType);
-    setWallet(backendWallet || storedWallet);
-    setDailyState(storedDailyState);
-    setStreak(storedStreak);
-    setVouchers(storedVouchers);
-    await loadWaterData();
+      setProfile(storedProfile);
+      setGoal(storedGoal);
+      setGoalType(storedGoalType);
+      setWallet(backendWallet || storedWallet);
+      setDailyState(storedDailyState);
+      setStreak(storedStreak);
+      setVouchers(storedVouchers);
+      await loadWaterData();
+      setDashboardReady(true);
+    } finally {
+      setDashboardLoading(false);
+    }
   }, [loadWaterData]);
 
   const featuredVoucher = vouchers[0] || null;
@@ -342,15 +355,7 @@ const HomeScreen = () => {
       loadDashboard();
 
       const backHandlerSubscription = BackHandler.addEventListener('hardwareBackPress', () => {
-        Alert.alert(
-          'Exit App',
-          'Are you sure you want to exit?',
-          [
-            { text: 'No', style: 'cancel' },
-            { text: 'Yes', onPress: () => BackHandler.exitApp() },
-          ],
-          { cancelable: true },
-        );
+        setExitModalVisible(true);
         return true;
       });
 
@@ -376,7 +381,10 @@ const HomeScreen = () => {
   }, [coinSplashValues]);
 
   const completeActiveSlotIfNeeded = async () => {
-    if (activeSlotCompleted) {
+    const latestDailyState = await getDailyHydrationState();
+
+    if (latestDailyState.completedSlots.includes(activeSlot)) {
+      setDailyState(latestDailyState);
       return false;
     }
 
@@ -395,13 +403,24 @@ const HomeScreen = () => {
   };
 
   const handleDrink = async () => {
-    if (activeSlotCompleted) {
+    if (tapDisabled || tapInProgressRef.current) {
       return;
     }
 
-    await logWaterIntake(selectedAmount);
-    await completeActiveSlotIfNeeded();
-    await loadWaterData();
+    tapInProgressRef.current = true;
+    setTapInProgress(true);
+    try {
+      const completed = await completeActiveSlotIfNeeded();
+      if (!completed) {
+        return;
+      }
+
+      await logWaterIntake(selectedAmount);
+      await loadWaterData();
+    } finally {
+      tapInProgressRef.current = false;
+      setTapInProgress(false);
+    }
   };
 
   const handleSelectCup = (cup: any) => {
@@ -500,14 +519,14 @@ const HomeScreen = () => {
       ]),
     );
 
-    if (!activeSlotCompleted) {
+    if (!tapDisabled) {
       pulseAnimation.start();
     } else {
       tapPulseValue.setValue(0);
     }
 
     return () => pulseAnimation.stop();
-  }, [activeSlotCompleted, tapPulseValue]);
+  }, [tapDisabled, tapPulseValue]);
 
   useEffect(() => {
     if (intake < goal && goalCelebrated) {
@@ -624,19 +643,21 @@ const HomeScreen = () => {
           </View>
 
           <View style={styles.progressInfo}>
-            <Text style={styles.literText}>
-              {formatLiters(intake)} <Text style={styles.goalLiterText}>/ {formatLiters(goal)}</Text>
+            <Text style={[styles.literText, !showStoredDashboard && styles.loadingGoalText]}>
+              {showStoredDashboard
+                ? <>{formatLiters(intake)} <Text style={styles.goalLiterText}>/ {formatLiters(goal)}</Text></>
+                : 'Loading goal...'}
             </Text>
             <View style={styles.dailyGoalTrack}>
               <View style={[styles.dailyGoalFill, { width: `${Math.max(fillPercent, intake > 0 ? 8 : 0)}%` }]} />
             </View>
-            <Text style={styles.dailyGoalText}>{Math.round(fillPercent)}% of your daily goal</Text>
+            <Text style={styles.dailyGoalText}>{showStoredDashboard ? `${Math.round(fillPercent)}% of your daily goal` : 'Checking your saved hydration plan'}</Text>
             <View style={styles.remainingCard}>
               <View style={styles.remainingDropBadge}>
                 <MaterialCommunityIcons name="water" size={isWideHome ? 38 : 28} color="#B7F8FF" />
               </View>
               <View style={styles.remainingCopy}>
-                <Text style={styles.remainingStrong}>{formatLiters(remaining)} remaining</Text>
+                <Text style={styles.remainingStrong}>{showStoredDashboard ? `${formatLiters(remaining)} remaining` : 'Loading saved goal'}</Text>
                 <Text style={styles.remainingSub}>Keep going! You're doing great.</Text>
               </View>
             </View>
@@ -644,13 +665,13 @@ const HomeScreen = () => {
               <View style={styles.metaBlock}>
                 <MaterialCommunityIcons name="target" size={28} color="#94B4E8" />
                 <Text style={styles.metaLabel}>Goal Type</Text>
-                <Text style={styles.metaValue}>{goalType}</Text>
+                <Text style={styles.metaValue}>{showStoredDashboard ? goalType : '--'}</Text>
               </View>
               <View style={styles.metaDivider} />
               <View style={styles.metaBlock}>
                 <MaterialCommunityIcons name="water-check-outline" size={28} color="#94B4E8" />
                 <Text style={styles.metaLabel}>Completed Slots</Text>
-                <Text style={styles.metaValue}>{completedCount} / 3</Text>
+                <Text style={styles.metaValue}>{showStoredDashboard ? `${completedCount} / 3` : '--'}</Text>
               </View>
             </View>
             
@@ -675,14 +696,16 @@ const HomeScreen = () => {
                 Current Slot: <Text style={styles.addWaterSlotValue}>{slotMeta[activeSlot].title}</Text>
               </Text>
               <Text style={styles.addWaterRewardText}>
-                {activeSlotCompleted
+                {!showStoredDashboard || dashboardLoading
+                  ? 'Checking your saved slot status'
+                  : activeSlotCompleted
                   ? `${slotMeta[activeSlot].title} reward complete`
                   : `Tap to complete your ${slotMeta[activeSlot].title} reward`}
               </Text>
             </View>
 
-            <Animated.View style={[styles.tapButtonWrap, !activeSlotCompleted && { transform: [{ scale: tapButtonScale }] }]}>
-              {!activeSlotCompleted && (
+            <Animated.View style={[styles.tapButtonWrap, !tapDisabled && { transform: [{ scale: tapButtonScale }] }]}>
+              {!tapDisabled && (
                 <Animated.View
                   pointerEvents="none"
                   style={[
@@ -695,22 +718,22 @@ const HomeScreen = () => {
                 />
               )}
               <TouchableOpacity
-                style={[styles.tapButton, activeSlotCompleted && styles.tapButtonDisabled]}
+                style={[styles.tapButton, tapDisabled && styles.tapButtonDisabled]}
                 onPress={handleDrink}
-                disabled={activeSlotCompleted}
+                disabled={tapDisabled}
                 activeOpacity={0.88}
               >
                 <GradientFrame
-                  colors={activeSlotCompleted ? ['#19375A', '#123053'] : ['#19C9FF', '#5C1ED5']}
+                  colors={tapDisabled ? ['#19375A', '#123053'] : ['#19C9FF', '#5C1ED5']}
                   style={styles.tapButtonGradient}
                 >
                   <MaterialCommunityIcons
-                    name={activeSlotCompleted ? 'check-circle-outline' : 'water'}
+                    name={activeSlotCompleted ? 'check-circle-outline' : dashboardLoading || tapInProgress ? 'progress-clock' : 'water'}
                     size={isWideHome ? 22 : 18}
-                    color={activeSlotCompleted ? '#9CF5FF' : '#FFFFFF'}
+                    color={tapDisabled ? '#9CF5FF' : '#FFFFFF'}
                   />
                   <Text style={styles.tapButtonText}>
-                    {activeSlotCompleted ? 'Slot Complete' : `Tap ${selectedAmount} mL`}
+                    {activeSlotCompleted ? 'Slot Complete' : dashboardLoading ? 'Loading...' : tapInProgress ? 'Saving...' : `Tap ${selectedAmount} mL`}
                   </Text>
                 </GradientFrame>
               </TouchableOpacity>
@@ -727,7 +750,7 @@ const HomeScreen = () => {
               const isSelected = cup.amount === selectedCup;
               const label = isCustomButton
                 ? 'Custom'
-                : `${cup.amount === 'default' ? defaultSlotAmount : cup.amount} mL`;
+                : `${cup.amount === 'default' && !showStoredDashboard ? '--' : cup.amount === 'default' ? defaultSlotAmount : cup.amount} mL`;
 
               return (
                 <TouchableOpacity
@@ -766,6 +789,7 @@ const HomeScreen = () => {
           <TapEnableStrip
             activeSlot={activeSlot}
             completedSlots={dailyState.completedSlots}
+            loading={!showStoredDashboard || dashboardLoading}
             onInfoPress={() => setActiveInfoKey('slots')}
           />
 
@@ -952,6 +976,12 @@ const HomeScreen = () => {
         onClose={() => setActiveInfoKey(null)}
       />
 
+      <ExitAppModal
+        visible={exitModalVisible}
+        onCancel={() => setExitModalVisible(false)}
+        onExit={() => BackHandler.exitApp()}
+      />
+
       {featuredVoucher ? (
         <VoucherBubble voucher={featuredVoucher} onPress={() => setActiveVoucher(featuredVoucher)} />
       ) : null}
@@ -984,6 +1014,38 @@ const InfoButton = ({ onPress, style }: { onPress: () => void; style?: StyleProp
   <TouchableOpacity activeOpacity={0.82} onPress={onPress} style={[styles.infoButton, style]}>
     <Feather name="info" size={15} color="#9cc5ff" />
   </TouchableOpacity>
+);
+
+const ExitAppModal = ({
+  visible,
+  onCancel,
+  onExit,
+}: {
+  visible: boolean;
+  onCancel: () => void;
+  onExit: () => void;
+}) => (
+  <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
+    <View style={styles.exitOverlay}>
+      <View style={styles.exitDialogFrame}>
+        <LinearGradient colors={['#071f46', '#10082a']} style={styles.exitDialog}>
+          <View style={styles.exitIconWrap}>
+            <MaterialCommunityIcons name="logout-variant" size={30} color="#9cf5ff" />
+          </View>
+          <Text style={styles.exitTitle}>Exit DoraDrink?</Text>
+          <Text style={styles.exitMessage}>Your hydration progress is saved. Come back soon to keep your streak moving.</Text>
+          <View style={styles.exitActions}>
+            <TouchableOpacity activeOpacity={0.86} onPress={onCancel} style={styles.exitCancelButton}>
+              <Text style={styles.exitCancelText}>Stay</Text>
+            </TouchableOpacity>
+            <TouchableOpacity activeOpacity={0.86} onPress={onExit} style={styles.exitConfirmButton}>
+              <Text style={styles.exitConfirmText}>Exit App</Text>
+            </TouchableOpacity>
+          </View>
+        </LinearGradient>
+      </View>
+    </View>
+  </Modal>
 );
 
 const HydrationSlotProgressStrip = ({
@@ -1314,10 +1376,12 @@ const slotEnableImages: Record<SlotKey, ImageSourcePropType> = {
 const TapEnableStrip = ({
   activeSlot,
   completedSlots,
+  loading,
   onInfoPress,
 }: {
   activeSlot: SlotKey;
   completedSlots: SlotKey[];
+  loading: boolean;
   onInfoPress: () => void;
 }) => {
   const activeIndex = slotOrder.indexOf(activeSlot);
@@ -1331,8 +1395,8 @@ const TapEnableStrip = ({
       <View style={styles.tapEnableTrack}>
         {slotOrder.map((slot, index) => {
           const completed = completedSlots.includes(slot);
-          const active = slot === activeSlot && !completed;
-          const locked = index > activeIndex && !completed;
+          const active = !loading && slot === activeSlot && !completed;
+          const locked = loading || (index > activeIndex && !completed);
 
           return (
             <View
@@ -1357,7 +1421,7 @@ const TapEnableStrip = ({
               </View>
               <View style={styles.tapEnableStatusRow}>
                 <Text style={[styles.tapEnableStatusText, completed && styles.tapEnableStatusTextDone]}>
-                  {completed ? 'Completed' : locked ? 'Pending' : 'Tap enabled'}
+                  {loading ? 'Checking...' : completed ? 'Completed' : locked ? 'Pending' : 'Tap enabled'}
                 </Text>
                 {completed && (
                   <View style={styles.tapEnableRewardRow}>
@@ -1567,6 +1631,10 @@ const styles = StyleSheet.create({
     fontSize: isCompact ? 34 : isWideHome ? 56 : 43,
     fontWeight: '900',
     marginTop: 0,
+  },
+  loadingGoalText: {
+    fontSize: isCompact ? 18 : isWideHome ? 24 : 20,
+    lineHeight: isCompact ? 24 : isWideHome ? 30 : 26,
   },
   goalLiterText: {
     color: '#FFFFFF',
@@ -2776,6 +2844,87 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 18,
     textAlign: 'center',
+  },
+  exitOverlay: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(1,5,18,0.78)',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+  },
+  exitDialogFrame: {
+    borderColor: 'rgba(72, 166, 255, 0.55)',
+    borderRadius: 24,
+    borderWidth: 1,
+    overflow: 'hidden',
+    shadowColor: '#16BFFF',
+    shadowOpacity: 0.35,
+    shadowRadius: 20,
+    width: '100%',
+  },
+  exitDialog: {
+    alignItems: 'center',
+    padding: isWideHome ? 24 : 20,
+  },
+  exitIconWrap: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(22, 191, 255, 0.14)',
+    borderColor: 'rgba(156, 245, 255, 0.42)',
+    borderRadius: 25,
+    borderWidth: 1,
+    height: 56,
+    justifyContent: 'center',
+    width: 56,
+  },
+  exitTitle: {
+    color: '#FFFFFF',
+    fontSize: isWideHome ? 22 : 19,
+    fontWeight: '900',
+    marginTop: 14,
+    textAlign: 'center',
+  },
+  exitMessage: {
+    color: '#C8D2EE',
+    fontSize: isWideHome ? 14 : 12,
+    lineHeight: isWideHome ? 21 : 18,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  exitActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 20,
+    width: '100%',
+  },
+  exitCancelButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(11, 29, 64, 0.92)',
+    borderColor: '#315A94',
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    height: 46,
+    justifyContent: 'center',
+  },
+  exitConfirmButton: {
+    alignItems: 'center',
+    backgroundColor: '#176CFF',
+    borderColor: '#7DD9FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    flex: 1,
+    height: 46,
+    justifyContent: 'center',
+  },
+  exitCancelText: {
+    color: '#D8E4FF',
+    fontSize: 14,
+    fontWeight: '900',
+  },
+  exitConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '900',
   },
   celebrationOverlay: {
     alignItems: 'center',

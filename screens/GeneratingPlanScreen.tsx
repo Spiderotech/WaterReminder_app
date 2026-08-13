@@ -7,6 +7,7 @@ import {
   Easing,
   Dimensions,
   Image,
+  ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LottieView from 'lottie-react-native';
@@ -18,12 +19,13 @@ import { scheduleReminderNotifications } from '../utils/notificationUtils';
 
 const { width, height } = Dimensions.get('window');
 const isSmallDevice = width < 350 || height < 650;
+const isShortDevice = height < 720;
 
 // Responsive values
-const padding = isSmallDevice ? 16 : 24;
+const padding = isSmallDevice ? 14 : 24;
 const titleFontSize = isSmallDevice ? 34 : 42;
 const subtitleFontSize = isSmallDevice ? 15 : 18;
-const lottieSize = isSmallDevice ? 90 : 150;
+const lottieSize = isSmallDevice ? 72 : isShortDevice ? 104 : 150;
 const footerFontSize = isSmallDevice ? 11 : 14;
 const BLUE = '#16b8ff';
 const DEEP_BLUE = '#0058ff';
@@ -117,7 +119,7 @@ const GeneratingPlanScreen = ({ navigation, route }: any) => {
       : buildThreeReminderPlan(userData.wakeUpTime, userData.sleepTime, planType)
   ), [planType, userData]);
   const progressFillStyle = useMemo(() => ({
-    width: `${displayedPercent}%`,
+    width: `${displayedPercent}%` as `${number}%`,
   }), [displayedPercent]);
   const lottieStyle = useMemo(() => ({
     width: lottieSize,
@@ -184,82 +186,87 @@ const GeneratingPlanScreen = ({ navigation, route }: any) => {
   }, [navigation, progress, userData]);
 
   return (
-    <View style={[styles.container, { padding }]}>
-
-      <View style={styles.loaderCard}>
-        <View style={styles.lottieHalo}>
-          <LottieView
-            source={require('../assets/progress.json')}
-            autoPlay
-            loop
-            style={lottieStyle}
-          />
-        </View>
-
-        <View style={styles.progressHeader}>
-          <Text style={styles.progressLabel}>Generating plan</Text>
-          <Text style={styles.percentText}>{displayedPercent}%</Text>
-        </View>
-        <View style={styles.progressTrack}>
-          <Animated.View style={[styles.progressFill, progressFillStyle]} />
-        </View>
-        <Text style={[styles.footer, styles.footerSize]}>
-          Saving profile, water target, and reminder schedule.
-        </Text>
-      </View>
-
-      <View style={[styles.planCard, planAccentBorderStyle]}>
-        <View style={styles.planHeader}>
-          <View style={styles.planIcon}>
-            <Image
-              source={require('../assets/info1.png')}
-              style={styles.planIconImage}
-              resizeMode="contain"
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.content, { paddingHorizontal: padding }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.loaderCard}>
+          <View style={styles.lottieHalo}>
+            <LottieView
+              source={require('../assets/progress.json')}
+              autoPlay
+              loop
+              style={lottieStyle}
             />
           </View>
-          <View style={styles.planTitleWrap}>
-            <Text style={[styles.planBadge, planAccentTextStyle]}>Selected plan</Text>
-            <Text style={styles.planTitle}>{planName}</Text>
+
+          <View style={styles.progressHeader}>
+            <Text style={styles.progressLabel}>Generating plan</Text>
+            <Text style={styles.percentText}>{displayedPercent}%</Text>
           </View>
-          <View style={styles.goalWrap}>
-            <Text style={[styles.goalValue, planAccentTextStyle]}>{dailyGoal}</Text>
-            <Text style={styles.goalUnit}>{unit}/day</Text>
+          <View style={styles.progressTrack}>
+            <Animated.View style={[styles.progressFill, progressFillStyle]} />
           </View>
+          <Text style={[styles.footer, styles.footerSize]}>
+            Saving profile, water target, and reminder schedule.
+          </Text>
         </View>
 
-        <View style={styles.reminderDivider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>3 REMINDERS PER DAY</Text>
-          <View style={styles.dividerLine} />
-        </View>
-
-        <View style={styles.reminderRow}>
-          {reminderPlan.slice(0, 3).map((item: { id: string; time: string; label: string }) => (
-            <View key={item.id} style={styles.reminderItem}>
-              <Text style={styles.reminderIcon}>
-                {item.id === 'evening' ? '☾' : '☀'}
-              </Text>
-              <Text style={styles.reminderTime}>{formatTime12(item.time)}</Text>
-              <Text style={styles.reminderLabel}>{item.label}</Text>
+        <View style={[styles.planCard, planAccentBorderStyle]}>
+          <View style={styles.planHeader}>
+            <View style={styles.planIcon}>
+              <Image
+                source={require('../assets/info1.png')}
+                style={styles.planIconImage}
+                resizeMode="contain"
+              />
             </View>
-          ))}
-        </View>
-      </View>
+            <View style={styles.planTitleWrap}>
+              <Text style={[styles.planBadge, planAccentTextStyle]}>Selected plan</Text>
+              <Text style={styles.planTitle}>{planName}</Text>
+            </View>
+            <View style={styles.goalWrap}>
+              <Text style={[styles.goalValue, planAccentTextStyle]}>{dailyGoal}</Text>
+              <Text style={styles.goalUnit}>{unit}/day</Text>
+            </View>
+          </View>
 
-      <View style={styles.statusCard}>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusCheck}>✓</Text>
-          <Text style={styles.statusText}>Personal profile prepared</Text>
+          <View style={styles.reminderDivider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>3 REMINDERS PER DAY</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <View style={styles.reminderRow}>
+            {reminderPlan.slice(0, 3).map((item: { id: string; time: string; label: string }) => (
+              <View key={item.id} style={styles.reminderItem}>
+                <Text style={styles.reminderIcon}>
+                  {item.id === 'evening' ? '☾' : '☀'}
+                </Text>
+                <Text style={styles.reminderTime}>{formatTime12(item.time)}</Text>
+                <Text style={styles.reminderLabel}>{item.label}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusCheck}>✓</Text>
-          <Text style={styles.statusText}>Daily water target calculated</Text>
+
+        <View style={styles.statusCard}>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusCheck}>✓</Text>
+            <Text style={styles.statusText}>Personal profile prepared</Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusCheck}>✓</Text>
+            <Text style={styles.statusText}>Daily water target calculated</Text>
+          </View>
+          <View style={styles.statusRow}>
+            <Text style={styles.statusCheck}>✓</Text>
+            <Text style={styles.statusText}>Reminder notifications scheduled</Text>
+          </View>
         </View>
-        <View style={styles.statusRow}>
-          <Text style={styles.statusCheck}>✓</Text>
-          <Text style={styles.statusText}>Reminder notifications scheduled</Text>
-        </View>
-      </View>
+      </ScrollView>
     </View>
   );
 };
@@ -270,8 +277,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BG,
+  },
+  scroll: {
+    flex: 1,
+  },
+  content: {
     justifyContent: 'center',
-    overflow: 'hidden',
+    minHeight: height,
+    paddingBottom: isSmallDevice ? 14 : 24,
+    paddingTop: isSmallDevice ? 14 : 24,
   },
   topGlow: {
     position: 'absolute',
@@ -327,44 +341,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: PANEL,
     borderColor: BLUE,
-    borderRadius: 28,
+    borderRadius: isSmallDevice ? 22 : 28,
     borderWidth: 1,
-    padding: isSmallDevice ? 18 : 24,
+    padding: isSmallDevice ? 14 : isShortDevice ? 18 : 24,
     shadowColor: BLUE,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.28,
     shadowRadius: 18,
   },
   lottieHalo: {
-    width: isSmallDevice ? 122 : 184,
-    height: isSmallDevice ? 122 : 184,
-    borderRadius: isSmallDevice ? 61 : 92,
+    width: isSmallDevice ? 96 : isShortDevice ? 132 : 184,
+    height: isSmallDevice ? 96 : isShortDevice ? 132 : 184,
+    borderRadius: isSmallDevice ? 48 : isShortDevice ? 66 : 92,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 88, 255, 0.18)',
-    marginBottom: 12,
+    marginBottom: isSmallDevice ? 8 : 12,
   },
   progressHeader: {
     width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 6,
-    marginBottom: 10,
+    marginTop: isSmallDevice ? 2 : 6,
+    marginBottom: isSmallDevice ? 8 : 10,
   },
   progressLabel: {
     color: '#fff',
-    fontSize: isSmallDevice ? 16 : 18,
+    fontSize: isSmallDevice ? 14 : 18,
     fontWeight: '700',
   },
   percentText: {
     color: BLUE,
-    fontSize: isSmallDevice ? 22 : 28,
+    fontSize: isSmallDevice ? 20 : 28,
     fontWeight: '800',
   },
   progressTrack: {
     width: '100%',
-    height: 12,
+    height: isSmallDevice ? 9 : 12,
     borderRadius: 99,
     backgroundColor: 'rgba(82, 103, 159, 0.35)',
     overflow: 'hidden',
@@ -379,63 +393,64 @@ const styles = StyleSheet.create({
   footer: {
     color: MUTED,
     textAlign: 'center',
-    marginTop: 14,
+    marginTop: isSmallDevice ? 10 : 14,
   },
   footerSize: {
     fontSize: footerFontSize,
   },
   planCard: {
     backgroundColor: PANEL_SOFT,
-    borderRadius: 26,
+    borderRadius: isSmallDevice ? 20 : 26,
     borderWidth: 1,
-    marginTop: 18,
-    padding: isSmallDevice ? 16 : 20,
+    marginTop: isSmallDevice ? 12 : 18,
+    padding: isSmallDevice ? 12 : 20,
   },
   planHeader: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   planIcon: {
-    width: 66,
-    height: 66,
-    borderRadius: 33,
+    width: isSmallDevice ? 46 : 66,
+    height: isSmallDevice ? 46 : 66,
+    borderRadius: isSmallDevice ? 23 : 33,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0, 88, 255, 0.28)',
-    marginRight: 14,
+    marginRight: isSmallDevice ? 9 : 14,
   },
   planIconImage: {
-    width: 48,
-    height: 48,
+    width: isSmallDevice ? 34 : 48,
+    height: isSmallDevice ? 34 : 48,
   },
   planTitleWrap: {
     flex: 1,
+    minWidth: 0,
   },
   planBadge: {
-    fontSize: 13,
+    fontSize: isSmallDevice ? 11 : 13,
     fontWeight: '800',
     marginBottom: 4,
   },
   planTitle: {
     color: '#fff',
-    fontSize: isSmallDevice ? 21 : 25,
+    fontSize: isSmallDevice ? 17 : 25,
     fontWeight: '800',
   },
   goalWrap: {
     alignItems: 'flex-end',
   },
   goalValue: {
-    fontSize: isSmallDevice ? 30 : 36,
+    fontSize: isSmallDevice ? 24 : 36,
     fontWeight: '900',
   },
   goalUnit: {
     color: MUTED,
-    fontSize: 14,
+    fontSize: isSmallDevice ? 11 : 14,
   },
   reminderDivider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 18,
+    marginVertical: isSmallDevice ? 10 : 18,
   },
   dividerLine: {
     flex: 1,
@@ -444,9 +459,9 @@ const styles = StyleSheet.create({
   },
   dividerText: {
     color: BLUE,
-    fontSize: 12,
+    fontSize: isSmallDevice ? 9 : 12,
     fontWeight: '800',
-    marginHorizontal: 10,
+    marginHorizontal: isSmallDevice ? 6 : 10,
   },
   reminderRow: {
     flexDirection: 'row',
@@ -454,48 +469,49 @@ const styles = StyleSheet.create({
   reminderItem: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: isSmallDevice ? 2 : 4,
   },
   reminderIcon: {
     color: BLUE,
-    fontSize: 25,
-    marginBottom: 6,
+    fontSize: isSmallDevice ? 18 : 25,
+    marginBottom: isSmallDevice ? 3 : 6,
   },
   reminderTime: {
     color: '#fff',
-    fontSize: isSmallDevice ? 13 : 15,
+    fontSize: isSmallDevice ? 11 : 15,
     fontWeight: '800',
   },
   reminderLabel: {
     color: MUTED,
-    fontSize: isSmallDevice ? 11 : 12,
+    fontSize: isSmallDevice ? 9 : 12,
+    lineHeight: isSmallDevice ? 12 : 16,
     textAlign: 'center',
     marginTop: 3,
   },
   statusCard: {
     backgroundColor: 'rgba(5, 20, 50, 0.72)',
     borderColor: BORDER,
-    borderRadius: 22,
+    borderRadius: isSmallDevice ? 18 : 22,
     borderWidth: 1,
-    marginTop: 18,
-    padding: 18,
+    marginTop: isSmallDevice ? 12 : 18,
+    padding: isSmallDevice ? 12 : 18,
   },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 5,
+    marginVertical: isSmallDevice ? 3 : 5,
   },
   statusCheck: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: isSmallDevice ? 22 : 26,
+    height: isSmallDevice ? 22 : 26,
+    borderRadius: isSmallDevice ? 11 : 13,
     backgroundColor: BLUE,
     color: '#fff',
-    fontSize: 17,
+    fontSize: isSmallDevice ? 14 : 17,
     fontWeight: '900',
     textAlign: 'center',
-    lineHeight: 26,
-    marginRight: 12,
+    lineHeight: isSmallDevice ? 22 : 26,
+    marginRight: isSmallDevice ? 9 : 12,
   },
   statusText: {
     color: MUTED,

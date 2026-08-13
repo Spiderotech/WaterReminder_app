@@ -36,7 +36,7 @@ const SplashScreen = () => {
       }
     };
 
-    const timeout = setTimeout(checkUserData, 2000); // 2-second splash delay
+    const timeout = setTimeout(checkUserData, 1000); // 2-second splash delay
 
     return () => clearTimeout(timeout);
   }, [navigation]);

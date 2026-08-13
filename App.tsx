@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StatusBar, Platform, AppState } from 'react-native';
-import { DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { DarkTheme, DefaultTheme, NavigationContainer, type NavigationContainerRef, type ParamListBase } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 
 // Screens
@@ -31,6 +31,9 @@ import ExactAlarmPermissionModal from './components/ExactAlarmPermissionModal';
 import { needsExactAlarmPermission } from './utils/exactAlarmPermission';
 import MainTabs from './components/MainTabs';
 import { registerPushToken, subscribeToForegroundPushNotifications } from './services/pushTokenService';
+import { initializeAppAnalytics, setAnalyticsUser, setAnalyticsUserProperty, trackScreenView } from './services/analyticsService';
+import { initializeCrashReporting, reportHandledError, setCrashReportingAttributes, setCrashReportingUser } from './services/crashlyticsService';
+import { getBackendAuthMode, getBackendUserId } from './services/backendAuthService';
 
 
 
@@ -40,6 +43,8 @@ const Stack = createNativeStackNavigator();
 const MainApp = () => {
   const { theme } = useThemeContext();
   const [showExactAlarmModal, setShowExactAlarmModal] = useState(false);
+  const navigationRef = useRef<NavigationContainerRef<ParamListBase> | null>(null);
+  const routeNameRef = useRef<string | undefined>(undefined);
 
   const runNotificationTask = async (name: string, task: () => Promise<unknown>) => {
     try {
@@ -47,6 +52,9 @@ const MainApp = () => {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown error';
       console.warn(`[notifications] ${name} failed:`, message);
+      reportHandledError(error, `Notification task failed: ${name}`, {
+        task: name,
+      });
     }
   };
 
@@ -54,6 +62,38 @@ const MainApp = () => {
     const needPermission = await needsExactAlarmPermission();
     setShowExactAlarmModal(needPermission);
   };
+
+  useEffect(() => {
+    const initializeFirebaseReporting = async () => {
+      await Promise.all([
+        initializeAppAnalytics(),
+        initializeCrashReporting(),
+      ]);
+
+      const [backendUserId, backendAuthMode] = await Promise.all([
+        getBackendUserId(),
+        getBackendAuthMode(),
+      ]);
+
+      if (backendUserId) {
+        await Promise.all([
+          setAnalyticsUser(backendUserId),
+          setCrashReportingUser(backendUserId),
+        ]);
+      }
+
+      if (backendAuthMode) {
+        await Promise.all([
+          setAnalyticsUserProperty('auth_mode', backendAuthMode),
+          setCrashReportingAttributes({ auth_mode: backendAuthMode }),
+        ]);
+      }
+    };
+
+    initializeFirebaseReporting().catch(error => {
+      reportHandledError(error, 'Firebase reporting initialization failed');
+    });
+  }, []);
 
 
  useEffect(() => {
@@ -103,7 +143,24 @@ const MainApp = () => {
 
   return (
     <>
-      <NavigationContainer theme={theme === 'dark' ? DarkTheme : DefaultTheme} >
+      <NavigationContainer
+        ref={navigationRef}
+        theme={theme === 'dark' ? DarkTheme : DefaultTheme}
+        onReady={() => {
+          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+          routeNameRef.current = currentRouteName;
+          void trackScreenView(currentRouteName);
+        }}
+        onStateChange={() => {
+          const previousRouteName = routeNameRef.current;
+          const currentRouteName = navigationRef.current?.getCurrentRoute()?.name;
+
+          if (currentRouteName && previousRouteName !== currentRouteName) {
+            routeNameRef.current = currentRouteName;
+            void trackScreenView(currentRouteName);
+          }
+        }}
+      >
         <StatusBar
           backgroundColor={theme === 'dark' ? '#000000' : '#ffffff'} // ← Fix here
           barStyle={theme === 'dark' ? 'light-content' : 'dark-content'}

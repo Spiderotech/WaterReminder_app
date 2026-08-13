@@ -145,7 +145,7 @@ const DigitalMeScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
     completedSlots: [],
     wallet: { coins: 450, diamonds: 1 },
     streak: { current: 0, best: 0 },
-    username: 'Arjun',
+    username: 'Username',
     globalRank: null,
     globalParticipants: 0,
   });
@@ -193,7 +193,7 @@ const DigitalMeScreen = ({ goToTab }: { goToTab?: (tab: string) => void }) => {
           completedSlots: dailyState.completedSlots || [],
           wallet,
           streak,
-          username: profile?.username || 'Arjun',
+          username: profile?.username || 'Username',
           globalRank: leaderboard?.currentUser?.rank || null,
           globalParticipants: leaderboard?.competition?.participants || leaderboard?.leaderboard.length || 0,
         });
